@@ -294,10 +294,7 @@ $(document).ready(function() {
 		}
 		
 		if ($type == 1) {
- 		  $class = 'btn-success';  
-		} elseif ($type == 0) {
-		  $class = 'btn-danger';
-		  $amount = '-'.$amount;
+ 		  $class = 'btn-success';
 		} else {
 		  $class = 'btn-danger';
 		  $amount = '-'.$amount;
