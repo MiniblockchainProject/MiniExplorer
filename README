@@ -1,0 +1,14 @@
+MBC Block Explorer
+
+This is a PHP (no database required) block explorer designed for use with mini-blockchain coins.
+
+REQUIREMENTS:
+
+* PHP >= 5.4
+* cryptonited > 14080613
+
+INSTALLATION:
+
+* upload files to server
+* run /install/install.php
+* follow install instructions
