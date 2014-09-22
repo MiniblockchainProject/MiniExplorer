@@ -6,7 +6,7 @@ $error_level = E_ALL;
 $rpc_debug = true;
 
 // install directory ('/' if installed at root)
-$install_dir = '/explorer/';
+$install_dir = '/';
 
 // website title
 $site_name = 'Block Explorer';
@@ -30,10 +30,10 @@ $txper_page = 10;
 $rpc_client = 'cryptonited';
 
 // RPC username
-$rpc_user = 'cryptoniterpc';
+$rpc_user = '';
 
 // RPC password
-$rpc_pass = '4qxokAmRyBVK9s545aJtLGzBr2BRgPxjZ3iFQUj299Hm';
+$rpc_pass = '';
 
 // address of coinbase account
 $cb_address = 'CGTta3M4t3yXu8uRgkKvaWd2d8DQvDPnpL';
