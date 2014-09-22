@@ -8,16 +8,21 @@ if (rpc_error_check(false)) {
 	$total_in = 0;
 	$total_out = 0;
 	
-	foreach ($tx['vin'] as $key => $value) {
-	  $clean_val = remove_ep($value['value']);
-	  $total_in = bcadd($total_in, $clean_val);
-	  if ($value['coinbase'] == true) {
-		$input_str .= "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
-					  "</a> &rarr; <span class='sad_txt'>$clean_val</span> $curr_code (block reward)<br />";
-	  } else {
-		$input_str .= "<a href='./?address=".$value['address']."'>".$value['address'].
-					  "</a> &rarr; <span class='sad_txt'>$clean_val</span> $curr_code<br />";
+	if (count($tx['vin']) > 0) {
+	  foreach ($tx['vin'] as $key => $value) {
+	    $clean_val = remove_ep($value['value']);
+	    $total_in = bcadd($total_in, $clean_val);
+	    if ($value['coinbase'] == true) {
+		  $input_str .= "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
+					    "</a> &rarr; <span class='sad_txt'>$clean_val</span> $curr_code (block reward)<br />";
+	    } else {
+		  $input_str .= "<a href='./?address=".$value['address']."'>".$value['address'].
+					    "</a> &rarr; <span class='sad_txt'>$clean_val</span> $curr_code<br />";
+	    }
 	  }
+	} else {
+	  $total_in = 0;
+	  $input_str = 'No Inputs (coinbase genesis transaction)<br />';
 	}
 		
 	foreach ($tx['vout'] as $key => $value) {
@@ -48,7 +53,7 @@ if (rpc_error_check(false)) {
 	$tx_time = isset($tx['time']) ? date("Y-m-d h:i A e", $tx['time']) : 'unknown';
 	$confirmations = isset($tx['confirmations']) ? $tx['confirmations'] : '0';
 	$tx_message = empty($tx['msg']) ? 'none' : safe_str($tx['msg']);
-	$tx_fee = bcsub($total_in, $total_out);
+	$tx_fee = ($total_in === 0) ? '0' : bcsub($total_in, $total_out);
 	
 	echo "<tr><td><b>Time Sent:</b></td><td>$tx_time</td></tr>";
 	echo "<tr><td><b>Confirmations:</b></td><td>$confirmations</td></tr>";
@@ -61,6 +66,5 @@ if (rpc_error_check(false)) {
 	
 	echo "<h3>Inputs:</h3><p>$input_str</p>";	
 	echo "<h3>Outputs:</h3><p>$output_str</p>";
-
 }
 ?>
