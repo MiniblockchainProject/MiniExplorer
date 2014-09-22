@@ -33,21 +33,31 @@ if (rpc_error_check(false)) {
 	}
 	
 	echo "<h1>Transaction Details</h1><br />";
-	echo "<p><b>TxID:</b> <a href='./?rawtx=".
-		 $tx['txid']."'>".$tx['txid']."</a></p>";
+	echo "<table class='table table-striped table-condensed' style='width:auto;'>";
+	
+	echo "<tr><td><b>TxID:</b></td><td><a href='./?rawtx=".
+		 $tx['txid']."'>".$tx['txid']."</a></td></tr>";
 		 
 	if (isset($tx['blockhash'])) {
-	  echo "<p><b>Block:</b> <a href='./?block=".$tx['blockhash']."'>".$tx['blockhash']."</a></p>";
+	  echo "<tr><td><b>Block:</b></td><td><a href='./?block=".
+	       $tx['blockhash']."'>".$tx['blockhash']."</a></td></tr>";
 	} else {
-	  echo "<p><b>Block:</b> not in a block yet</p>";
+	  echo "<tr><td><b>Block:</b></td><td>not in a block yet</td></tr>";
 	}
-	echo "<p><b>Time Sent:</b> ".(isset($tx['time'])?date("Y-m-d h:i A e", $tx['time']):'unknown')."</p>";
-	echo "<p><b>Confirmations:</b> ".(isset($tx['confirmations'])?$tx['confirmations']:'0')."</p>";
-	echo "<p><b>Lock Height:</b> ".$tx['lockheight']."</p>";
-	echo "<p><b>Total Input:</b> $total_in $curr_code</p>";
-	echo "<p><b>Total Output:</b> $total_out $curr_code</p>";
-	echo "<p><b>Fee:</b> ".bcsub($total_in, $total_out)." $curr_code</p>";
-	echo "<p><b>Message:</b> ".(empty($tx['msg'])?'none':safe_str($tx['msg']))."</p>";
+	
+	$tx_time = isset($tx['time']) ? date("Y-m-d h:i A e", $tx['time']) : 'unknown';
+	$confirmations = isset($tx['confirmations']) ? $tx['confirmations'] : '0';
+	$tx_message = empty($tx['msg']) ? 'none' : safe_str($tx['msg']);
+	$tx_fee = bcsub($total_in, $total_out);
+	
+	echo "<tr><td><b>Time Sent:</b></td><td>$tx_time</td></tr>";
+	echo "<tr><td><b>Confirmations:</b></td><td>$confirmations</td></tr>";
+	echo "<tr><td><b>Lock Height:</b></td><td>".$tx['lockheight']."</td></tr>";
+	echo "<tr><td><b>Total Input:</b></td><td>$total_in $curr_code</td></tr>";
+	echo "<tr><td><b>Total Output:</b></td><td>$total_out $curr_code</td></tr>";
+	echo "<tr><td><b>Fee:</b></td><td>$tx_fee $curr_code</td></tr>";
+	echo "<tr><td><b>Message:</b></td><td>$tx_message</td></tr>";
+	echo "</table>";
 	
 	echo "<h3>Inputs:</h3><p>$input_str</p>";	
 	echo "<h3>Outputs:</h3><p>$output_str</p>";
