@@ -2,11 +2,10 @@
 ini_set('memory_limit', -1);
 ini_set('max_execution_time', 999);
 
-require_once('./../inc/config.inc.php');
-require_once('./../lib/common.lib.php');
-session_start();
+require_once(dirname(__FILE__).'/../inc/config.inc.php');
+require_once(dirname(__FILE__).'/../lib/common.lib.php');
 
-$bhdb_handle = fopen('./../db/bhashes', "r+");
+$bhdb_handle = fopen(dirname(__FILE__).'/../db/bhashes', "r+");
 $null_64bstr = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".
 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
@@ -22,27 +21,27 @@ function put_block_hash($index, $hash) {
   fwrite($bhdb_handle, $hash, 64);
 }
 
-$_SESSION[$rpc_client] = new RPCclient($rpc_user, $rpc_pass);
-$getinfo = $_SESSION[$rpc_client]->getinfo();
+$daemon = new RPCclient($rpc_user, $rpc_pass);
+$getinfo = $daemon->getinfo();
 $block_height = $getinfo['blocks'];
 
-if (empty($getinfo) || !empty($_SESSION[$rpc_client]->error)) {
+if (empty($getinfo) || !empty($daemon->error)) {
   die('error: rpc command getinfo() failed');
 }
 
-$l_dat = explode(':', file_get_contents("./../db/last_dat"));
+$l_dat = explode(':', file_get_contents(dirname(__FILE__)."/../db/last_dat"));
 $l_blk = (int) $l_dat[0];
 $l_txn = (int) $l_dat[1];
 
 while ($l_blk <= $block_height) {
-  $block_hash = $_SESSION[$rpc_client]->getblockhash($l_blk);
+  $block_hash = $daemon->getblockhash($l_blk);
   if (empty($block_hash)) {
     $error = "error: could not get block $l_blk";
 	break;
   }
   $last_hash = get_block_hash($l_blk);
   if (empty($last_hash) || $last_hash === $null_64bstr) {
-    $block = $_SESSION[$rpc_client]->getblock($block_hash);
+    $block = $daemon->getblock($block_hash);
 	if (empty($block)) {
       $error = "error: could not get block $block_hash";
 	  break;
@@ -51,7 +50,7 @@ while ($l_blk <= $block_height) {
 	$break = false;
 	$n_txn = 0;
 	foreach ($block['tx'] as $key => $txid) {
-	  $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
+	  $tx = $daemon->getrawtransaction($txid, 1);
 	  if (empty($tx)) {
         $error = "error: could not get tx $txid";
 	    $break = true;
@@ -90,10 +89,10 @@ while ($l_blk <= $block_height) {
 	} else {
 	  foreach ($add_txs as $address => $value) {
 	    $sub_dir = substr($address, 1, 2);
-		if (!file_exists("./../db/txs/$sub_dir/")) {
-          mkdir("./../db/txs/$sub_dir/", 0700);
+		if (!file_exists(dirname(__FILE__)."/../db/txs/$sub_dir/")) {
+          mkdir(dirname(__FILE__)."/../db/txs/$sub_dir/", 0700);
 		}
-	    file_put_contents("./../db/txs/$sub_dir/$address", $value, FILE_APPEND);
+	    file_put_contents(dirname(__FILE__)."/../db/txs/$sub_dir/$address", $value, FILE_APPEND);
 	  }
       put_block_hash($l_blk, $block_hash);
 	  $l_txn += $n_txn;
@@ -107,7 +106,7 @@ while ($l_blk <= $block_height) {
   }
 }
 
-file_put_contents("./../db/last_dat", "$l_blk:$l_txn");
+file_put_contents(dirname(__FILE__)."/../db/last_dat", "$l_blk:$l_txn");
 
 if (empty($error)) {
   echo 'done';
