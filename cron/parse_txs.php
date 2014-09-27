@@ -21,7 +21,7 @@ function put_block_hash($index, $hash) {
   fwrite($bhdb_handle, $hash, 64);
 }
 
-$daemon = new RPCclient($rpc_user, $rpc_pass);
+$daemon = new RPCclient($rpc_user, $rpc_pass, $rpc_host, $rpc_port, $rpc_url);
 $getinfo = $daemon->getinfo();
 $block_height = $getinfo['blocks'];
 
