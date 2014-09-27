@@ -7,7 +7,7 @@ require_once('./inc/config.inc.php');
 session_start();
 
 // connect to RPC client
-$_SESSION[$rpc_client] = new RPCclient($rpc_user, $rpc_pass);
+$_SESSION[$rpc_client] = new RPCclient($rpc_user, $rpc_pass, $rpc_host, $rpc_port, $rpc_url);
 
 // get general network info
 $getinfo = $_SESSION[$rpc_client]->getinfo();

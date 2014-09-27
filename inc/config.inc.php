@@ -29,6 +29,15 @@ $txper_page = 10;
 // RPC client name
 $rpc_client = 'cryptonited';
 
+// RPC host 
+$rpc_host = 'localhost';
+
+// RPC port
+$rpc_port = '8252';
+
+// RPC url
+$rpc_url = '';
+
 // RPC username
 $rpc_user = '';
 
