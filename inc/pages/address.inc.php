@@ -3,12 +3,48 @@ $address = preg_replace("/[^a-z0-9]/i", '', $_GET['address']);
 $confs = empty($_GET['confs']) ? 1 : (int)$_GET['confs'];
 $conf_txt = "($confs or more confs)";
 $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
+$tx_memp = $_SESSION[$rpc_client]->getrawmempool();
 $sub_dir = substr($address, 1, 2);
 $tx_dat = explode("\n", trim(@file_get_contents("./db/txs/$sub_dir/$address")));
 $tx_total = count($tx_dat);
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
+$l_dat = explode(':', file_get_contents("./db/last_dat"));
+$l_blk = (int) $l_dat[0];
+$l_txn = (int) $l_dat[1];
 $tx_set = array();
+
+function update_txset($txid) {
+  global $address;
+  global $tx_set;
+  global $tx_total;
+  global $rpc_client;
+  $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
+  if (isset($tx['limit'])) {
+	if ($tx['vin'][0]['address']) {
+	  $tx['amount'] = remove_ep($tx['vin'][0]['value']);
+	  $tx['type'] = '2';
+	  $tx_set[] = $tx;
+	}
+  } else {
+	foreach ($tx['vin'] as $k => $input) {
+	  if ($input['address'] === $address) {
+		$tx['amount'] = remove_ep($input['value']);
+		$tx['type'] = '0';
+		$tx_set[] = $tx;
+		$tx_total++;
+	  }
+	}
+	foreach ($tx['vout'] as $k => $output) {
+	  if ($output['address'] === $address) {
+		$tx['amount'] = remove_ep($output['value']);
+		$tx['type'] = '1';
+		$tx_set[] = $tx;
+		$tx_total++;
+	  }
+	}
+  }
+}
 
 if (rpc_error_check(false)) {
 
@@ -34,33 +70,22 @@ if (rpc_error_check(false)) {
     $tx_set = $tx_dat;
   }
   
-  $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
+  if (($getinfo['blocks'] - $l_blk) < 10) {
+    for ($i=$l_blk;$i<$getinfo['blocks'];$i++) {
+      $block_hash = $_SESSION[$rpc_client]->getblockhash($i+1);
+      $block = $_SESSION[$rpc_client]->getblock($block_hash);
+	  if (!empty($block['tx'])) {
+        foreach ($block['tx'] as $key => $txid) {
+	      update_txset($txid);
+	    }
+	  }
+    }
+  } else {
+    die('error: /cron/parse_txs.php cron job is not running');
+  }
+  
   foreach ($tx_memp as $key => $txid) {
-    $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
-	if (isset($tx['limit'])) {
-	  if ($tx['vin'][0]['address']) {
-		$tx['amount'] = remove_ep($tx['vin'][0]['value']);
-		$tx['type'] = '2';
-	    $tx_set[] = $tx;
-	  }
-	} else {
-	  foreach ($tx['vin'] as $k => $input) {
-		if ($input['address'] === $address) {
-		  $tx['amount'] = remove_ep($input['value']);
-		  $tx['type'] = '0';
-		  $tx_set[] = $tx;
-		  $tx_total++;
-		}
-	  }
-	  foreach ($tx['vout'] as $k => $output) {
-		if ($output['address'] === $address) {
-		  $tx['amount'] = remove_ep($output['value']);
-		  $tx['type'] = '1';
-		  $tx_set[] = $tx;
-		  $tx_total++;
-		}
-	  }
-	}
+    update_txset($txid);
   }
 
   $tran_count = count($tx_set);
@@ -203,10 +228,7 @@ $(document).ready(function() {
 		}
 	  }
 	
-	  if (empty($tx_set[$i])) { 
-	    if ($i == $start_index) {
-		  echo "<p>There are no transactions before this point in history.</p>";
-		}
+	  if (empty($tx_set[$i])) {
 	    break; 
 	  }
 	  
