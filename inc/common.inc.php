@@ -35,6 +35,14 @@ if (empty($_GET['page'])) {
   } elseif (isset($_GET['rawblock'])) {
     require_once('./inc/pages/rawblock.inc.php');
 	exit;
+  } elseif (isset($_GET['q'])) {
+    if (empty($_GET['q'])) {
+      $page = 'api';
+	  $page_title = "Query API";
+    } else {
+      require_once('./inc/pages/api.inc.php');
+	  exit;
+	}
   } else {
     $page = 'home';
 	$page_title = 'Home';
