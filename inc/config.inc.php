@@ -20,6 +20,15 @@ $curr_code = 'XCN';
 // show coinbase tx's on home page
 $show_cbtxs = true;
 
+// initial balance of coinbase account
+$total_coin = '1844674407';
+
+// initial block reward
+$first_reward = '243.1';
+
+// unix time when first block was mined
+$launch_time = 1406509200;
+
 // number of decimal places
 $dec_count = 10;
 
