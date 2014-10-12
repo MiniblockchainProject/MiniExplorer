@@ -401,11 +401,14 @@ FileETag None
 # See: zenverse.net/seo-friendly-urls-with-htaccess/
 
 <IfModule mod_rewrite.c>
-  RewriteRule ^tx/([a-zA-Z0-9]+)/$ ?tx=$1
-  RewriteRule ^rawtx/([a-zA-Z0-9]+)/$ ?rawtx=$1
-  RewriteRule ^block/([a-zA-Z0-9]+)/$ ?block=$1
-  RewriteRule ^rawblock/([a-zA-Z0-9]+)/$ ?rawblock=$1
-  RewriteRule ^address/([a-zA-Z0-9]+)/$ ?address=$1
+  RewriteRule ^tx/([a-zA-Z0-9]+) ?tx=$1
+  RewriteRule ^rawtx/([a-zA-Z0-9]+) ?rawtx=$1
+  RewriteRule ^block/([a-zA-Z0-9]+) ?block=$1
+  RewriteRule ^rawblock/([a-zA-Z0-9]+) ?rawblock=$1
+  RewriteRule ^address/([a-zA-Z0-9]+) ?address=$1
+  RewriteRule ^q/([a-zA-Z]+)/([a-zA-Z0-9]+)/([a-zA-Z0-9]+) ?q=$1&arg1=$2&arg2=$3
+  RewriteRule ^q/([a-zA-Z]+)/([a-zA-Z0-9]+) ?q=$1&arg1=$2
+  RewriteRule ^q/([a-zA-Z]+) ?q=$1
 </IfModule>
 
 
