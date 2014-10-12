@@ -18,7 +18,7 @@
 	  <a href="./?q=blockreward">blockreward</a> - current block reward<br />
 	  <a href="./?q=coinsupply">coinsupply</a> - total coins mined<br />
 	  <a href="./?q=unminedcoins">unminedcoins</a> - total unmined coins<br />
-	  <a href="./?q=coinage">coinage</a> - time since first block (secs)
+	  <a href="./?q=runtime">runtime</a> - time since first block (secs)
 	</p>
 
 	<h3>Transaction Data</h3>
@@ -95,7 +95,7 @@
 	  $balance = $_SESSION[$rpc_client]->listbalances(1, array($cb_address));
       $result = remove_ep($balance[0]['balance']);
       break;
-    case 'coinage': ////////////////////////////////////////////
+    case 'runtime': ////////////////////////////////////////////
       $now_time = date("Y-m-d H:i:s e");
 	  $start_time = date("Y-m-d H:i:s e", $launch_time);
 	  $time_diff = get_time_difference($start_time, $now_time);
