@@ -2,72 +2,98 @@
 $address = preg_replace("/[^a-z0-9]/i", '', $_GET['address']);
 $confs = empty($_GET['confs']) ? 1 : (int)$_GET['confs'];
 $conf_txt = "($confs or more confs)";
+
 $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
 $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
+
 $sub_dir = substr($address, 1, 2);
-$tx_dat = explode("\n", trim(@file_get_contents("./db/txs/$sub_dir/$address")));
-$tx_total = count($tx_dat);
+$tx_count = count_lines("./db/txs/$sub_dir/$address");
+$txdb_handle = new SplFileObject("./db/txs/$sub_dir/$address");
+
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
 $l_dat = explode(':', file_get_contents("./db/last_dat"));
+
 $l_blk = (int) $l_dat[0];
 $l_txn = (int) $l_dat[1];
 $tx_set = array();
 
-function update_txset($txid) {
+function update_txset($txid, $append=1) {
   global $address;
   global $tx_set;
-  global $tx_total;
   global $rpc_client;
   $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
   if (isset($tx['limit'])) {
 	if ($tx['vin'][0]['address']) {
 	  $tx['amount'] = remove_ep($tx['vin'][0]['value']);
 	  $tx['type'] = '2';
-	  $tx_set[] = $tx;
+	  if ($append) {
+	    $tx_set[] = $tx;
+	  } else {
+	    array_unshift($tx_set, $tx);
+	  }
+	  return true;
 	}
-  } else {
+  } elseif (!empty($tx)) {
 	foreach ($tx['vin'] as $k => $input) {
 	  if ($input['address'] === $address) {
 		$tx['amount'] = remove_ep($input['value']);
 		$tx['type'] = '0';
-		$tx_set[] = $tx;
-		$tx_total++;
+	    if ($append) {
+	      $tx_set[] = $tx;
+	    } else {
+	      array_unshift($tx_set, $tx);
+	    }
+		return true;
 	  }
 	}
 	foreach ($tx['vout'] as $k => $output) {
 	  if ($output['address'] === $address) {
 		$tx['amount'] = remove_ep($output['value']);
 		$tx['type'] = '1';
-		$tx_set[] = $tx;
-		$tx_total++;
+	    if ($append) {
+	      $tx_set[] = $tx;
+	    } else {
+	      array_unshift($tx_set, $tx);
+	    }
+		return true;
 	  }
 	}
   }
+  return false;
 }
 
 if (rpc_error_check(false)) {
 
-  if ($filter == 1) {
-    $index = 0;
-    foreach ($tx_dat as $key => $value) {
-	  $tx_arr = explode(':', $value);
-	  if ($tx_arr[2] == 0) {
-	    $tx_set[$index] = $value;
-		$index++;
-	  }
+  $p = (empty($_GET['p'])) ? 1 : (int)$_GET['p'];
+  if ($p < 1) { $p = 1; }
+  $start_line = ($p-1) * $txper_page;
+  $txset_size = 0;
+  
+  if ($sort_meth == 0) {
+	$start_line = $tx_count - $start_line - 1;
+  }
+	
+  for ($i=$start_line;;) { 
+  
+    try {
+      $txdb_handle->seek($i);
+	  $line = trim($txdb_handle->current());
+	} catch (Exception $e) {
+	  break;
 	}
-  } elseif ($filter == 2) {
-    $index = 0;
-    foreach ($tx_dat as $key => $value) {
-	  $tx_arr = explode(':', $value);
-	  if ($tx_arr[2] == 1) {
-	    $tx_set[$index] = $value;
-		$index++;
-	  }
-	}
-  } else {
-    $tx_set = $tx_dat;
+	
+	if (empty($line)) { break; }
+	$tx_arr = explode(':', $line);
+	
+	if (($filter == 1) && ($tx_arr[2] != 0)) { continue; }
+	if (($filter == 2) && ($tx_arr[2] != 1)) { continue; }
+
+    update_txset($tx_arr[0]);
+	$txset_size++;
+	
+	if ($txset_size >= $txper_page) { break; }
+    if ($sort_meth == 0) { $i--; } else { $i++; }
   }
   
   if (($getinfo['blocks'] - $l_blk) < 10) {
@@ -76,7 +102,9 @@ if (rpc_error_check(false)) {
       $block = $_SESSION[$rpc_client]->getblock($block_hash);
 	  if (!empty($block['tx'])) {
         foreach ($block['tx'] as $key => $txid) {
-	      update_txset($txid);
+	      if (update_txset($txid, $sort_meth)) {
+		    $tx_count++;
+		  }
 	    }
 	  }
     }
@@ -85,14 +113,12 @@ if (rpc_error_check(false)) {
   }
   
   foreach ($tx_memp as $key => $txid) {
-    update_txset($txid);
+    if (update_txset($txid, $sort_meth)) {
+	  $tx_count++;
+	}
   }
-
-  $tran_count = count($tx_set);
-  $num_pages = ceil($tran_count/$txper_page);
-  $p = (empty($_GET['p'])) ? 1 : (int)$_GET['p'];
-  if ($p < 1) { $p = 1; }
   
+  $num_pages = ceil($tx_count/$txper_page);
   $start_page = $p - 2;
   if ($start_page < 1) {
 	$start_page = 1;
@@ -114,7 +140,7 @@ if (rpc_error_check(false)) {
   if (!empty($filter)) {
     $ex_vars .= "&amp;filter=$filter";
   }
-  
+
   if ($num_pages > 1) {
 	$p_active = ($p == 1) ? " class='active'" : '';
 	$nav_html = "<li$p_active><a href='./?address=$address&amp;p=1$ex_vars'>First</a></li>";
@@ -145,7 +171,7 @@ if (rpc_error_check(false)) {
       <tr><td><b>Balance:</b></td><td><?php echo "$clean_bal $curr_code $conf_txt"; ?></td></tr>
       <tr><td><b>Withdrawal Limit:</b></td><td><?php echo "$clean_lim $curr_code"; ?></td></tr>
       <tr><td><b>Pending Limit:</b></td><td><?php echo "$clean_fli $curr_code"; ?></td></tr>
-      <tr><td><b>Transactions:</b></td><td><?php echo $tx_total; ?></td></tr>
+      <tr><td><b>Transactions:</b></td><td><?php echo $tx_count; ?></td></tr>
       <tr><td><b>Last Used:</b></td><td><?php echo $last_used; ?></td></tr>
 	</table>
   </div>
@@ -206,104 +232,29 @@ $(document).ready(function() {
   
 	echo "<table class='table table-striped'>";
 	
-	if ($sort_meth == 0) {
-	  $start_index = $tran_count - (($p * $txper_page) - $txper_page);
-	} else {
-	  $start_index = ($p * $txper_page) - $txper_page - 1;
-	}
-	
-	for ($i=$start_index;true;) {
-	
-	  if ($sort_meth == 0) {    
-		if ($i > $start_index-$txper_page) {
-		  $i--;
-		} else {
-		  break;
-		}
-	  } else {
-		if ($i < $start_index+$txper_page) {
-		  $i++;
-		} else {
-		  break;
-		}
-	  }
-	
-	  if (empty($tx_set[$i])) {
-	    break; 
-	  }
+	foreach ($tx_set as $tx_key => $tx) {
 	  
-	  if (is_string($tx_set[$i])) {
-	    list($txid, $amount, $type) = explode(':', $tx_set[$i]);
-	    $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
-	  } else {
-	    $tx = $tx_set[$i];
-		$txid = $tx['txid'];
-		$amount = $tx['amount'];
-		$type = $tx['type'];
-	  }
+	  $txid = $tx['txid'];
+	  $amount = $tx['amount'];
+	  $type = $tx['type'];
 	  
-	  if (empty($tx) || (!isset($tx['type']) && empty($tx['confirmations']))) {
-
-		if ($tx_dat[$i] === $tx_set[$i]) {
-	      unset($tx_dat[$i]);
-		} else {
-		  foreach ($tx_dat as $key => $value) {
-		    if ($value === $tx_set[$i]) {
-			  unset($tx_dat[$key]);
-			  break;
-			}
-		  }
-		}
-		
-		$save_txdat = true;
-		$txper_page++;
-		continue;
-		
-	  } else {
+	  $in_total = 0;
+	  $out_total = 0;
 	  
-		$in_total = 0;
-		$out_total = 0;
-		$confirmations = empty($tx['confirmations']) ? '0' : $tx['confirmations'];
-		$tx_time = empty($tx['time']) ? date("Y-m-d h:i:s A e") : date("Y-m-d h:i:s A e", $tx['time']);
+	  $confirmations = empty($tx['confirmations']) ? '0' : $tx['confirmations'];
+	  $tx_time = empty($tx['time']) ? date("Y-m-d h:i:s A e") : date("Y-m-d h:i:s A e", $tx['time']);
 		
-		echo "<tr><td colspan='2'><a href='./?tx=$txid'>$txid</a></td><td colspan='2' style=".
-			 "'text-align:right'>$tx_time</td></tr><tr><td style='vertical-align:middle'>";
+	  echo "<tr><td colspan='2'><a href='./?tx=$txid'>$txid</a></td><td colspan='2' style=".
+		   "'text-align:right'>$tx_time</td></tr><tr><td style='vertical-align:middle'>";
 		
-	    if (count($tx['vin']) > 0) {
-		  foreach ($tx['vin'] as $key => $value) {
-		    $clean_val = remove_ep($value['value']);
-		    $in_total = bcadd($in_total, $clean_val);
-		    if ($value['coinbase'] == true) {
-			  echo "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
-				   "</a>:&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;$curr_code&nbsp;(block&nbsp;reward)<br />";
-		    } else {
-			  if ($value['address'] == $address) {
-			    $address_val = "<b>$address</b>";
-			  } else {
-			    $address_val = $value['address'];
-			  }
-			  echo "<a href='./?address=".$value['address']."'>$address_val</a>:".
-				   "&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;$curr_code<br />";
-		    }
-		  }
-		} else {
-		  $in_total = 0;
-		  echo 'No Inputs (coinbase genesis transaction)<br />';
-		}
-		
-		echo "<br /></td><td style='vertical-align:middle'>
-		<i class='icon-arrow-right'></i><br /><br />
-		</td><td style='vertical-align:middle'>";
-		
-		foreach ($tx['vout'] as $key => $value) {
+	  if (count($tx['vin']) > 0) {
+		foreach ($tx['vin'] as $key => $value) {
 		  $clean_val = remove_ep($value['value']);
-		  $out_total = bcadd($out_total, $clean_val);
-		  if (isset($tx['limit'])) {
-			echo "Withdrawal limit of input address updated to: <span class='happy_txt'>".
-				  remove_ep($tx['limit'])."</span>&nbsp;$curr_code<br />";
-		  } elseif ($in_total === 0) {
+		  $in_total = bcadd($in_total, $clean_val);
+		  if ($value['coinbase'] == true) {
 			echo "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
-				 "</a>:&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;$curr_code<br />";
+				 "</a>:&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;".
+				 "$curr_code&nbsp;(block&nbsp;reward)<br />";
 		  } else {
 			if ($value['address'] == $address) {
 			  $address_val = "<b>$address</b>";
@@ -311,28 +262,51 @@ $(document).ready(function() {
 			  $address_val = $value['address'];
 			}
 			echo "<a href='./?address=".$value['address']."'>$address_val</a>:".
-				 "&nbsp;<span class='happy_txt'>$clean_val</span>&nbsp;$curr_code<br />";
+				 "&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;$curr_code<br />";
 		  }
 		}
-		
-		if ($type == 1) {
- 		  $class = 'btn-success';
-		} else {
-		  $class = 'btn-danger';
-		  $amount = '-'.$amount;
-		}
-		
-		echo "<br /></td><td style='vertical-align:middle;text-align:center;'>".
-		"<button class='btn btn-small $class'>$amount&nbsp;$curr_code</button><br />".
-		"<small>$confirmations confirmations</small><br /><br /></td></tr>";
+	  } else {
+		$in_total = 0;
+		echo 'No Inputs (coinbase genesis transaction)<br />';
 	  }
+		
+	  echo "<br /></td><td style='vertical-align:middle'>
+	  <i class='icon-arrow-right'></i><br /><br />
+	  </td><td style='vertical-align:middle'>";
+		
+	  foreach ($tx['vout'] as $key => $value) {
+		$clean_val = remove_ep($value['value']);
+		$out_total = bcadd($out_total, $clean_val);
+		if (isset($tx['limit'])) {
+		  echo "Withdrawal limit of input address updated to: <span class='happy_txt'>".
+				remove_ep($tx['limit'])."</span>&nbsp;$curr_code<br />";
+		} elseif ($in_total === 0) {
+		  echo "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
+				 "</a>:&nbsp;<span class='sad_txt'>$clean_val</span>&nbsp;$curr_code<br />";
+		} else {
+		  if ($value['address'] == $address) {
+			$address_val = "<b>$address</b>";
+		  } else {
+			$address_val = $value['address'];
+		  }
+		  echo "<a href='./?address=".$value['address']."'>$address_val</a>:".
+			   "&nbsp;<span class='happy_txt'>$clean_val</span>&nbsp;$curr_code<br />";
+		}
+	  }
+		
+	  if ($type == 1) {
+ 		$class = 'btn-success';
+	  } else {
+		$class = 'btn-danger';
+		$amount = '-'.$amount;
+	  }
+		
+	  echo "<br /></td><td style='vertical-align:middle;text-align:center;'>".
+	  "<button class='btn btn-small $class'>$amount&nbsp;$curr_code</button><br />".
+	  "<small>$confirmations confirmations</small><br /><br /></td></tr>";
 	}
 	
 	echo "</table>";
-	
-	if (isset($save_txdat)) {
-	  file_put_contents("./db/txs/$sub_dir/$address", implode("\n", $tx_dat));
-	}
   }
 }
 ?>
