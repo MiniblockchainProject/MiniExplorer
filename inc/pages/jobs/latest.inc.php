@@ -76,7 +76,7 @@ foreach ($txs as $key => $value) {
   $total = '';
   
   foreach ($tx[$key]['vout'] as $k => $value) {
-    if (!isset($tx[$i]['limit'])) {
+    if (!isset($tx[$k]['limit'])) {
       $total = bcadd($total, remove_ep($value['value']));
 	}
   }
