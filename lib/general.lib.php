@@ -29,6 +29,19 @@ function fwrite_stream($fp, $string) {
     return $written;
 }
 
+function count_lines($file) {
+  $linecount = 0;
+  $handle = fopen($file, "r");
+  while(!feof($handle)){
+    $line = fgets($handle);
+	if (!empty($line)) {
+      $linecount++;
+	}
+  }
+  fclose($handle);
+  return $linecount;
+}
+
 function rand_str() {
   return md5(uniqid(rand(), true));
 }
