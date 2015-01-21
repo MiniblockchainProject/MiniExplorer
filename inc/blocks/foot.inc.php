@@ -12,6 +12,7 @@
 	    }
 	  }
 	  ?>
-      <p>Status: <?php echo $status; ?> | Connections: <?php echo $getinfo['connections']; ?>
+      <p>Status: <a href="./?q=getinfo"><?php echo $status; ?></a>
+	  | Connections: <a href="./?page=peers"><?php echo $getinfo['connections']; ?></a>
 	  <br />&copy; Mini-blockchain Project <?php echo date("Y"); ?></p>
     </div>
