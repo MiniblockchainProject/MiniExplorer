@@ -7,7 +7,9 @@
 	  } elseif ($getinfo['testnet'] === true) {
 	    $status = 'using testnet';
 	  } elseif (!empty($getinfo['errors'])) {
-	    $status = 'rpc error';
+	    if (strpos($getinfo['errors'], 'Warning:') === false) {
+	      $status = 'rpc error';
+	    }
 	  }
 	  ?>
       <p>Status: <?php echo $status; ?> | Connections: <?php echo $getinfo['connections']; ?>
