@@ -25,7 +25,6 @@
 	<script src="js/html5shiv.min.js"></script>
 	<![endif]-->
 	<script src="./js/modernizr-2.6.2.min.js"></script>
-	<script src="./js/gen_validatorv4.js"></script>
 	<script src="./js/jquery-1.11.1.min.js"></script>
 	<script src="./js/jquery.qrcode.min.js"></script>
 	<script src="./js/bootstrap.min.js"></script>
