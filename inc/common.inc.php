@@ -30,15 +30,15 @@ if (empty($_GET['page'])) {
     $page = 'tx';
 	$page_title = "Transaction ".$_GET['tx'];
   } elseif (isset($_GET['rawtx'])) {
-    require_once('./inc/pages/rawtx.inc.php');
-	exit;
+    $page = 'rawtx';
+	$page_title = "Raw Transaction ".$_GET['rawtx'];
   } elseif (isset($_GET['rawblock'])) {
-    require_once('./inc/pages/rawblock.inc.php');
-	exit;
+    $page = 'rawblock';
+	$page_title = "Raw Block ".$_GET['rawblock'];
   } elseif (isset($_GET['q'])) {
     if (empty($_GET['q'])) {
       $page = 'api';
-	  $page_title = "Query API";
+	  $page_title = "API";
     } else {
       require_once('./inc/pages/api.inc.php');
 	  exit;
@@ -49,7 +49,12 @@ if (empty($_GET['page'])) {
   }
 } else {
   $page = urlencode($_GET['page']);
-  $title_arr = array('search' => 'Search', 'stats' => 'Stats', 'api' => 'API');
+  $title_arr = array('search' => 'Search', 
+    'orphaned' => 'Orphaned Blocks',
+    'stats' => 'Stats', 'api' => 'API',
+	'mempool' => 'Memory Pool',
+	'peers' => 'Connected Peers'
+  );
   if (isset($title_arr[$page])) {
     $page_title = $title_arr[$page];
   } else {
