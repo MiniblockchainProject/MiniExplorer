@@ -199,6 +199,7 @@
 	  unset($ginfo['keypoololdest']);
 	  unset($ginfo['keypoolsize']);
 	  unset($ginfo['paytxfee']);
+	  header('Content-Type: application/json');
 	  echo json_encode($ginfo);
       exit;
     case 'txinfo': ////////////////////////////////////////////
@@ -207,6 +208,7 @@
 	  } else {
         $tx_id = preg_replace("/[^a-f0-9]/", '', strtolower($_GET['arg1']));
         $tinfo = $_SESSION[$rpc_client]->getrawtransaction($tx_id, 1);
+        header('Content-Type: application/json');
 	    echo json_encode($tinfo);
         exit;
 	  }
@@ -219,6 +221,7 @@
         $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
 	    unset($ainfo[0]['ours']);
 	    unset($ainfo[0]['account']);
+        header('Content-Type: application/json');
         echo json_encode($ainfo[0]);
         exit;
 	  }
@@ -227,6 +230,7 @@
 	    die('block hash not specified');
 	  } else {
         $block = $_SESSION[$rpc_client]->getblock($_GET['arg1']);
+        header('Content-Type: application/json');
         echo json_encode($block);
         exit;
 	  }
