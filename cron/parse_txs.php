@@ -6,6 +6,7 @@ require_once(dirname(__FILE__).'/../inc/config.inc.php');
 require_once(dirname(__FILE__).'/../lib/common.lib.php');
 
 $bhdb_handle = fopen(dirname(__FILE__).'/../db/bhashes', "r+");
+$ohdb_handle = fopen(dirname(__FILE__).'/../db/ohashes', "r+");
 $null_64bstr = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".
 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
@@ -21,6 +22,18 @@ function put_block_hash($index, $hash) {
   fwrite($bhdb_handle, $hash, 64);
 }
 
+function get_orph_hash($index) {
+  global $ohdb_handle;
+  fseek($ohdb_handle, 64*$index);
+  return fread($ohdb_handle, 64);
+}
+
+function put_orph_hash($index, $hash) {
+  global $ohdb_handle;
+  fseek($ohdb_handle, 64*$index);
+  fwrite($ohdb_handle, $hash, 64);
+}
+
 $daemon = new RPCclient($rpc_user, $rpc_pass);
 $getinfo = $daemon->getinfo();
 $block_height = $getinfo['blocks'];
@@ -32,6 +45,10 @@ if (empty($getinfo) || !empty($daemon->error)) {
 $l_dat = explode(':', file_get_contents(dirname(__FILE__)."/../db/last_dat"));
 $l_blk = (int) $l_dat[0];
 $l_txn = (int) $l_dat[1];
+
+$o_dat = explode(':', file_get_contents(dirname(__FILE__)."/../db/orph_dat"));
+$o_blk = (int) $o_dat[0];
+$o_txn = (int) $o_dat[1];
 
 while ($l_blk <= $block_height) {
   $block_hash = $daemon->getblockhash($l_blk);
@@ -101,12 +118,17 @@ while ($l_blk <= $block_height) {
   } elseif ($last_hash === $block_hash) {
     continue;
   } else {
+    put_orph_hash($o_blk, $last_hash);
     put_block_hash($l_blk, $null_64bstr);
+    $block = $daemon->getblock($block_hash);
+    $o_txn += count($block['tx']);
 	$l_blk--;
+    $o_blk++;
   }
 }
 
 file_put_contents(dirname(__FILE__)."/../db/last_dat", "$l_blk:$l_txn");
+file_put_contents(dirname(__FILE__)."/../db/orph_dat", "$o_blk:$o_txn");
 
 if (empty($error)) {
   echo 'done';
