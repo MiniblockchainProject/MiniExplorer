@@ -7,8 +7,10 @@ $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
 $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
 
 $sub_dir = substr($address, 1, 2);
-$tx_count = count_lines("./db/txs/$sub_dir/$address");
-$txdb_handle = new SplFileObject("./db/txs/$sub_dir/$address");
+$ful_dir = "./db/txs/$sub_dir/$address";
+
+$tx_count = count_lines($ful_dir);
+$txdb_handle = new SplFileObject($ful_dir);
 
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
@@ -74,7 +76,7 @@ if (rpc_error_check(false)) {
 	$start_line = $tx_count - $start_line - 1;
   }
 	
-  for ($i=$start_line;;) { 
+  for ($i=$start_line;;) {
   
     try {
       $txdb_handle->seek($i);
@@ -83,14 +85,15 @@ if (rpc_error_check(false)) {
 	  break;
 	}
 	
-	if (empty($line)) { break; }
+	if (empty($line)) { continue; }
 	$tx_arr = explode(':', $line);
 	
 	if (($filter == 1) && ($tx_arr[2] != 0)) { continue; }
 	if (($filter == 2) && ($tx_arr[2] != 1)) { continue; }
 
-    update_txset($tx_arr[0]);
-	$txset_size++;
+    if (update_txset($tx_arr[0])) {
+	  $txset_size++;
+	}
 	
 	if ($txset_size >= $txper_page) { break; }
     if ($sort_meth == 0) { $i--; } else { $i++; }
