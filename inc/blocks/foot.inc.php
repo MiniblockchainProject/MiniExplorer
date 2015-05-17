@@ -1,14 +1,19 @@
 	<hr />
     <div id="footer">
 	  <?php
-	  $status = 'ok';
-	  if ($getinfo['blocks'] !== $getinfo['headers']) {
-	    $status = 'not synced';
-	  } elseif ($getinfo['testnet'] === true) {
-	    $status = 'using testnet';
-	  } elseif (!empty($getinfo['errors'])) {
-	    if (strpos($getinfo['errors'], 'Warning:') === false) {
-	      $status = 'rpc error';
+	  if (empty($getinfo)) {
+		$status = 'offline';
+		$getinfo['connections'] = 0;
+	  } else {
+	    $status = 'ok';
+	    if ($getinfo['blocks'] !== $getinfo['headers']) {
+	      $status = 'not synced';
+	    } elseif ($getinfo['testnet'] === true) {
+	      $status = 'using testnet';
+	    } elseif (!empty($getinfo['errors'])) {
+	      if (strpos($getinfo['errors'], 'Warning:') === false) {
+	        $status = 'rpc error';
+	      }
 	    }
 	  }
 	  ?>
