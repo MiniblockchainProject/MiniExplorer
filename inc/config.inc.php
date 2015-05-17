@@ -5,6 +5,12 @@ $error_level = E_ALL;
 // enable/disable rpc error reporting
 $rpc_debug = true;
 
+// enable/disable the explorer frontend
+$site_enabled = true;
+
+// message to show when $site_enabled = false
+$offline_msg = 'temporarily down for maintenance';
+
 // install directory ('/' if installed at root)
 $install_dir = '/';
 
