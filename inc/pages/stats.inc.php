@@ -11,6 +11,7 @@ $cb_balance = remove_ep($balance[0]['balance']);
 $frac_reman = bcdiv($cb_balance, $total_coin);
 $block_rwrd = bcmul($first_reward, $frac_reman);
 $l_dat = explode(':', file_get_contents("./db/last_dat"));
+$s_dat = explode(':', file_get_contents("./db/stat_dat"));
 ?>
 
 <h1>Statistics</h1><br />
@@ -34,6 +35,24 @@ $l_dat = explode(':', file_get_contents("./db/last_dat"));
 </td></tr><tr><td>
   <b>Active Addresses:</b></td><td>
   <?php echo $tx_stats['accounts']; ?>
+</td></tr><tr><td>
+  <b>Input Count:</b></td><td>
+  <?php echo $s_dat[0]; ?>
+</td></tr><tr><td>
+  <b>Output Count:</b></td><td>
+  <?php echo $s_dat[1]; ?>
+</td></tr><tr><td>
+  <b>Total Inputs:</b></td><td>
+  <?php echo float_format($s_dat[2], 6).' '.$curr_code; ?>
+</td></tr><tr><td>
+  <b>Total Outputs:</b></td><td>
+  <?php echo float_format($s_dat[3], 6).' '.$curr_code; ?>
+</td></tr><tr><td>
+  <b>Total Fees:</b></td><td>
+  <?php echo bcsub($s_dat[2], $s_dat[3]).' '.$curr_code; ?>
+</td></tr><tr><td>
+  <b>Avg. Block Time:</b></td><td>
+  <?php echo round(($time_diff['seconds']/$mining_info['blocks'])/60, 4).' minutes'; ?>
 </td></tr><tr><td>
   <b>Difficulty:</b></td><td>
   <?php echo float_format($mining_info['difficulty'], 6); ?>
