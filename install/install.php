@@ -12,10 +12,18 @@
 // ensure that PHP has necessary permissions
 
 if (!file_exists('./../db/last_dat')) {
-    if (file_put_contents('./../db/last_dat', '0:0')) {
+    if (file_put_contents('./../db/last_dat', '0:0:0:0')) {
 	  chmod('./../db/last_dat', 0700);
 	} else {
 	  die('error: unable to create /db/last_dat');
+	}
+}
+
+if (!file_exists('./../db/stat_dat')) {
+    if (file_put_contents('./../db/stat_dat', '0:0:0:0')) {
+	  chmod('./../db/stat_dat', 0700);
+	} else {
+	  die('error: unable to create /db/stat_dat');
 	}
 }
 
@@ -24,14 +32,6 @@ if (!file_exists('./../db/bhashes')) {
 	  chmod('./../db/bhashes', 0700);
 	} else {
 	  die('error: unable to create /db/bhashes');
-	}
-}
-
-if (!file_exists('./../db/orph_dat')) {
-    if (file_put_contents('./../db/orph_dat', '0:0')) {
-	  chmod('./../db/orph_dat', 0700);
-	} else {
-	  die('error: unable to create /db/last_dat');
 	}
 }
 
