@@ -33,7 +33,7 @@ function count_lines($file) {
   $linecount = 0;
   $handle = fopen($file, "r");
   while(!feof($handle)){
-    $line = fgets($handle);
+    $line = trim(fgets($handle));
 	if (!empty($line)) {
       $linecount++;
 	}
