@@ -20,15 +20,15 @@ function get_orph_hash($index) {
   return fread($ohdb_handle, 64);
 }
 
-$o_dat = explode(':', file_get_contents("./db/orph_dat"));
+$l_dat = explode(':', file_get_contents("./db/last_dat"));
 
-if ($o_dat[0] == 0) {
+if ($l_dat[2] == 0) {
 
   echo "<tr><td colspan='6'>Our node has not yet seen any orphaned blocks.</td></tr>";
 
 } else {
 
-  for ($i=0;$i<=$o_dat[0];$i++) {
+  for ($i=0;$i<=$l_dat[2];$i++) {
 
     $orph_hash = get_orph_hash($i);
     $block[$i] = $_SESSION[$rpc_client]->getblock($orph_hash);
