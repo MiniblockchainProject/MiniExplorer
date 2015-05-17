@@ -3,6 +3,9 @@
 require_once('./lib/common.lib.php');
 require_once('./inc/config.inc.php');
 
+// check if website is disabled
+if (!$site_enabled) { die($offline_msg); }
+
 // start the session
 session_start();
 
