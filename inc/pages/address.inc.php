@@ -1,7 +1,7 @@
 <?php
 $address = preg_replace("/[^a-z0-9]/i", '', $_GET['address']);
 $confs = empty($_GET['confs']) ? 1 : (int)$_GET['confs'];
-$conf_txt = "($confs or more confs)";
+$conf_txt = "(confs >= $confs)";
 
 $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
 $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
@@ -9,34 +9,49 @@ $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
 $sub_dir = substr($address, 1, 2);
 $ful_dir = "./db/txs/$sub_dir/$address";
 
-$tx_count = count_lines($ful_dir);
-$txdb_handle = new SplFileObject($ful_dir);
+if (file_exists($ful_dir)) {
+  $txdb_handle = fopen($ful_dir, "r+");
+  $s_dat = explode(':', file_get_contents("$ful_dir-stats"));
+} else {
+  $s_dat = array('0','0','0','0');
+}
+
+$l_dat = explode(':', file_get_contents("./db/last_dat"));
+$tx_count = $s_dat[2] + $s_dat[3];
 
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
-$l_dat = explode(':', file_get_contents("./db/last_dat"));
 
 $l_blk = (int) $l_dat[0];
 $l_txn = (int) $l_dat[1];
 $tx_set = array();
 
-function update_txset($txid, $append=1) {
+function update_txset($txid, $append=1, $torph=true) {
   global $address;
   global $tx_set;
   global $rpc_client;
+
   $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
-  if (isset($tx['limit'])) {
-	if ($tx['vin'][0]['address']) {
-	  $tx['amount'] = remove_ep($tx['vin'][0]['value']);
-	  $tx['type'] = '2';
-	  if ($append) {
-	    $tx_set[] = $tx;
-	  } else {
-	    array_unshift($tx_set, $tx);
-	  }
-	  return true;
+
+  if (!empty($tx)) {
+
+	if ($torph && $tx['confirmations'] < 1) {
+	  $tx['orphan'] = true;
 	}
-  } elseif (!empty($tx)) {
+
+    if (isset($tx['limit'])) {
+	  if ($tx['vin'][0]['address']) {
+	    $tx['amount'] = remove_ep($tx['vin'][0]['value']);
+	    $tx['type'] = '2';
+	    if ($append) {
+	      $tx_set[] = $tx;
+	    } else {
+	      array_unshift($tx_set, $tx);
+	    }
+	    return true;
+	  }
+    }
+
 	foreach ($tx['vin'] as $k => $input) {
 	  if ($input['address'] === $address) {
 		$tx['amount'] = remove_ep($input['value']);
@@ -49,6 +64,7 @@ function update_txset($txid, $append=1) {
 		return true;
 	  }
 	}
+
 	foreach ($tx['vout'] as $k => $output) {
 	  if ($output['address'] === $address) {
 		$tx['amount'] = remove_ep($output['value']);
@@ -65,6 +81,18 @@ function update_txset($txid, $append=1) {
   return false;
 }
 
+function get_tx($index) {
+  global $txdb_handle;
+  fseek($txdb_handle, 67*$index);
+  return fread($txdb_handle, 67);
+}
+
+function put_tx($index, $value) {
+  global $txdb_handle;
+  fseek($txdb_handle, 67*$index);
+  fwrite($txdb_handle, $value, 67);
+}
+
 if (rpc_error_check(false)) {
 
   $p = (empty($_GET['p'])) ? 1 : (int)$_GET['p'];
@@ -78,19 +106,20 @@ if (rpc_error_check(false)) {
 	
   for ($i=$start_line;;) {
   
-    try {
-      $txdb_handle->seek($i);
-	  $line = trim($txdb_handle->current());
-	} catch (Exception $e) {
-	  break;
-	}
+    if (isset($txdb_handle)) {
+	  $line = trim(get_tx($i));
+	} else { break; }
 	
-	if (empty($line)) { continue; }
+	if (empty($line)) { break; }
 	$tx_arr = explode(':', $line);
 	
-	if (($filter == 1) && ($tx_arr[2] != 0)) { continue; }
-	if (($filter == 2) && ($tx_arr[2] != 1)) { continue; }
-
+	if ((($filter == 1) && ($tx_arr[1] != 0)) ||
+	(($filter == 2) && ($tx_arr[1] != 1)) ||
+	(($filter == 3) && ($tx_arr[1] != 2))) {
+	  if ($sort_meth == 0) { $i--; } else { $i++; }
+	  continue;
+	}
+	
     if (update_txset($tx_arr[0])) {
 	  $txset_size++;
 	}
@@ -116,7 +145,7 @@ if (rpc_error_check(false)) {
   }
   
   foreach ($tx_memp as $key => $txid) {
-    if (update_txset($txid, $sort_meth)) {
+    if (update_txset($txid, $sort_meth, false)) {
 	  $tx_count++;
 	}
   }
@@ -159,6 +188,9 @@ if (rpc_error_check(false)) {
   $clean_lim = remove_ep($ainfo[0]['limit']);
   $clean_fli = remove_ep($ainfo[0]['futurelimit']);
   
+  $amnt_it = float_format($s_dat[0]);
+  $amnt_ot = float_format($s_dat[1]);
+  
   if (clean_number($clean_bal) === '0') {
     $last_used = 'unknown';
   } else {
@@ -166,20 +198,30 @@ if (rpc_error_check(false)) {
   }
 ?>
 
+<h1>Address Details</h1><br />
 <div class='row-fluid'>
-  <div class='span6'>
-    <h1>Address Details</h1><br />
+  <div class='span4'>
 	<table class='table table-striped table-condensed'>
       <tr><td><b>Address:</b></td><td><?php echo $ainfo[0]['address']; ?></td></tr>
       <tr><td><b>Balance:</b></td><td><?php echo "$clean_bal $curr_code $conf_txt"; ?></td></tr>
-      <tr><td><b>Withdrawal Limit:</b></td><td><?php echo "$clean_lim $curr_code"; ?></td></tr>
-      <tr><td><b>Pending Limit:</b></td><td><?php echo "$clean_fli $curr_code"; ?></td></tr>
-      <tr><td><b>Transactions:</b></td><td><?php echo $tx_count; ?></td></tr>
+      <tr><td><b>Total Sent:</b></td><td><?php echo "$amnt_it $curr_code"; ?></td></tr>
+      <tr><td><b>Total Received:</b></td><td><?php echo "$amnt_ot $curr_code"; ?></td></tr>
       <tr><td><b>Last Used:</b></td><td><?php echo $last_used; ?></td></tr>
 	</table>
   </div>
-  <div class='span6'>
-    <div id="qrbox" class="well"><div id="qrcode"></div></div>
+  <div class='span4'>
+    <table class='table table-striped table-condensed'>
+      <tr><td><b>Transactions:</b></td><td><?php echo $tx_count; ?></td></tr>
+      <tr><td><b>Tx's Sent:</b></td><td><?php echo $s_dat[2]; ?></td></tr>
+	  <tr><td><b>Tx's Received:</b></td><td><?php echo $s_dat[3]; ?></td></tr>
+      <tr><td><b>Withdrawal Limit:</b></td><td><?php echo "$clean_lim $curr_code"; ?></td></tr>
+      <tr><td><b>Pending Limit:</b></td><td><?php echo "$clean_fli $curr_code"; ?></td></tr>
+	</table>
+  </div>
+  <div class='span4'>
+    <center>
+	  <div id="qrbox" class="well"><div id="qrcode"></div></div>
+	</center>
   </div>
 </div>
 
@@ -198,6 +240,8 @@ if (!empty($nav_html)) {
 	<option value="1"<?php echo $sel_txt; ?>>sent</option>
 	<?php $sel_txt = ($filter == 2) ? ' selected="selected"' : ''; ?>
 	<option value="2"<?php echo $sel_txt; ?>>received</option>
+	<?php $sel_txt = ($filter == 3) ? ' selected="selected"' : ''; ?>
+	<option value="3"<?php echo $sel_txt; ?>>special</option>
   </select>
   <select name='sort' id="sort_select">
 	<?php $sel_txt = ($sort_meth == 0) ? ' selected="selected"' : ''; ?>
@@ -281,7 +325,7 @@ $(document).ready(function() {
 		$clean_val = remove_ep($value['value']);
 		$out_total = bcadd($out_total, $clean_val);
 		if (isset($tx['limit'])) {
-		  echo "Withdrawal limit of input address updated to: <span class='happy_txt'>".
+		  echo "Withdrawal limit of input address set to: <span class='happy_txt'>".
 				remove_ep($tx['limit'])."</span>&nbsp;$curr_code<br />";
 		} elseif ($in_total === 0) {
 		  echo "<a href='./?address=".$value['address']."'>TheCoinbaseAccount".
@@ -305,8 +349,15 @@ $(document).ready(function() {
 	  }
 		
 	  echo "<br /></td><td style='vertical-align:middle;text-align:center;'>".
-	  "<button class='btn btn-small $class'>$amount&nbsp;$curr_code</button><br />".
-	  "<small>$confirmations confirmations</small><br /><br /></td></tr>";
+	  "<button class='btn btn-small $class'>$amount&nbsp;$curr_code</button><br />";
+
+	  if (isset($tx['orphan']) && $tx['orphan'] === true) {
+	    echo "<small class='sad_txt'><b>orphan / invalid</b></small>";
+	  } else {
+	    echo "<small>$confirmations confirmations</small>";
+	  }
+
+	  echo "<br /><br /></td></tr>";
 	}
 	
 	echo "</table>";
