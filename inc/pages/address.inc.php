@@ -17,21 +17,30 @@ if (file_exists($ful_dir)) {
 }
 
 $l_dat = explode(':', file_get_contents("./db/last_dat"));
-$tx_count = $s_dat[2] + $s_dat[3];
 
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
 
+$inp_sum = float_format($s_dat[0]);
+$out_sum = float_format($s_dat[1]);
+
+$inp_cnt = (int) $s_dat[2];
+$out_cnt = (int) $s_dat[3];
+
 $l_blk = (int) $l_dat[0];
 $l_txn = (int) $l_dat[1];
+
+$tx_count = $s_dat[2] + $s_dat[3];
 $tx_set = array();
 
-function update_txset($txid, $append=1, $torph=true) {
-  global $address;
-  global $tx_set;
-  global $rpc_client;
+$real_txc = $tx_count;
+$real_inc = $inp_cnt;
+$real_otc = $out_cnt;
+$real_ins = $inp_sum;
+$real_ots = $out_sum;
 
-  $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
+function update_txset($tx, $append=1, $torph=true) {
+  global $tx_set;
 
   if (!empty($tx)) {
 
@@ -39,46 +48,45 @@ function update_txset($txid, $append=1, $torph=true) {
 	  $tx['orphan'] = true;
 	}
 
-    if (isset($tx['limit'])) {
-	  if ($tx['vin'][0]['address']) {
-	    $tx['amount'] = remove_ep($tx['vin'][0]['value']);
-	    $tx['type'] = '2';
-	    if ($append) {
-	      $tx_set[] = $tx;
-	    } else {
-	      array_unshift($tx_set, $tx);
-	    }
-	    return true;
-	  }
-    }
-
-	foreach ($tx['vin'] as $k => $input) {
-	  if ($input['address'] === $address) {
-		$tx['amount'] = remove_ep($input['value']);
-		$tx['type'] = '0';
-	    if ($append) {
-	      $tx_set[] = $tx;
-	    } else {
-	      array_unshift($tx_set, $tx);
-	    }
-		return true;
-	  }
-	}
-
-	foreach ($tx['vout'] as $k => $output) {
-	  if ($output['address'] === $address) {
-		$tx['amount'] = remove_ep($output['value']);
-		$tx['type'] = '1';
-	    if ($append) {
-	      $tx_set[] = $tx;
-	    } else {
-	      array_unshift($tx_set, $tx);
-	    }
-		return true;
-	  }
+	if ($append) {
+	  $tx_set[] = $tx;
+	} else {
+	  array_unshift($tx_set, $tx);
 	}
   }
-  return false;
+}
+
+function tx_scan($tx) {
+  global $address;
+
+  if (isset($tx['limit'])) {
+    $tx['type'] = 2;
+    $tx['in'] = 0;
+    $tx['amount'] = remove_ep($tx['vin'][0]['value']);
+    return $tx;
+  } else {
+
+    foreach ($tx['vin'] as $k => $input) {
+      if ($input['address'] === $address) {
+        $tx['type'] = 0;
+        $tx['in'] = remove_ep($input['value']);
+        $tx['amount'] = $tx['in'];
+        return $tx;
+      }
+    }
+
+    foreach ($tx['vout'] as $k => $output) {
+      if ($output['address'] === $address) {
+        $tx['type'] = 1;
+        $tx['out'] = remove_ep($output['value']);
+        $tx['amount'] = $tx['out'];
+        return $tx;
+      }
+    }
+  }
+
+  $tx['type'] = -1;
+  return $tx;
 }
 
 function get_tx($index) {
@@ -87,71 +95,137 @@ function get_tx($index) {
   return fread($txdb_handle, 67);
 }
 
-function put_tx($index, $value) {
-  global $txdb_handle;
-  fseek($txdb_handle, 67*$index);
-  fwrite($txdb_handle, $value, 67);
+function find_start($start) {
+  global $tx_count;
+  global $sort_meth;
+  global $filter;
+
+  $filtype = $filter-1;
+  $matches = 0;
+
+  if ($sort_meth) {
+    for ($i=0;$i<$tx_count;$i++) {
+      $tx_line = get_tx($i);
+      if ($filtype == $tx_line[65]) {
+        if ($matches == $start) {
+          return $i;
+        }
+        $matches++;
+      }
+    }
+    return $tx_count;
+  } else {
+    for ($i=$tx_count-1;$i>=0;$i--) {
+      $tx_line = get_tx($i);
+      if ($filtype == $tx_line[65]) {
+        if ($matches == $start) {
+          return $i;
+        }
+        $matches++;
+      }
+    }
+    return -1;
+  }
+}
+
+function check_tx($txid, $p) {
+  global $filter;
+  global $real_txc;
+  global $real_inc;
+  global $real_otc;
+  global $real_ins;
+  global $real_ots;
+  global $sort_meth;
+  global $rpc_client;
+
+  $tx = $_SESSION[$rpc_client]->getrawtransaction($txid, 1);
+  if (empty($tx)) { return 0; }
+  $tx = tx_scan($tx);
+  if ($tx['type'] >= 0) {
+    if (($filter != 0 && (($filter-1) == $tx['type'])) 
+    && ($p == 1 && $sort_meth == 0)) {
+      update_txset($tx, $sort_meth, false);
+    }
+	$real_txc++;
+	if ($tx['type'] == 0) {
+	  $real_inc++;
+	  $real_ins = bcadd($real_ins, $tx['in']);
+	} elseif ($tx['type'] == 1) {
+	  $real_otc++;
+	  $real_ots = bcadd($real_ots, $tx['out']);
+    }
+  }
 }
 
 if (rpc_error_check(false)) {
 
+  $txset_size = 0;
   $p = (empty($_GET['p'])) ? 1 : (int)$_GET['p'];
   if ($p < 1) { $p = 1; }
   $start_line = ($p-1) * $txper_page;
-  $txset_size = 0;
-  
-  if ($sort_meth == 0) {
-	$start_line = $tx_count - $start_line - 1;
+
+  if ($filter == 0) {
+    if ($sort_meth == 0) {
+	  $start_line = $tx_count - $start_line - 1;
+    }
+  } else {
+    $start_line = find_start($start_line);
   }
-	
+
   for ($i=$start_line;;) {
+  
+    if ($i < 0) { break; }
   
     if (isset($txdb_handle)) {
 	  $line = trim(get_tx($i));
+	  if (empty($line)) { break; }
 	} else { break; }
 	
-	if (empty($line)) { break; }
-	$tx_arr = explode(':', $line);
-	
-	if ((($filter == 1) && ($tx_arr[1] != 0)) ||
-	(($filter == 2) && ($tx_arr[1] != 1)) ||
-	(($filter == 3) && ($tx_arr[1] != 2))) {
+	if ($filter != 0 && (($filter-1) != $line[65])) {
 	  if ($sort_meth == 0) { $i--; } else { $i++; }
 	  continue;
 	}
-	
-    if (update_txset($tx_arr[0])) {
+
+	$tx_arr = explode(':', $line);
+    $tx = $_SESSION[$rpc_client]->getrawtransaction($tx_arr[0], 1);
+    $tx = tx_scan($tx);
+
+    if ($tx['type'] >= 0) {
+	  update_txset($tx);
 	  $txset_size++;
-	}
+	} else {
+      die('error: invalid link to tx: '.$tx_arr[0]);
+    }
 	
 	if ($txset_size >= $txper_page) { break; }
     if ($sort_meth == 0) { $i--; } else { $i++; }
   }
   
   if (($getinfo['blocks'] - $l_blk) < 10) {
+
     for ($i=$l_blk;$i<$getinfo['blocks'];$i++) {
       $block_hash = $_SESSION[$rpc_client]->getblockhash($i+1);
       $block = $_SESSION[$rpc_client]->getblock($block_hash);
 	  if (!empty($block['tx'])) {
-        foreach ($block['tx'] as $key => $txid) {
-	      if (update_txset($txid, $sort_meth)) {
-		    $tx_count++;
-		  }
-	    }
+        foreach ($block['tx'] as $key => $txid) { check_tx($txid, $p); }
 	  }
     }
+
   } else {
     die('error: /cron/parse_txs.php cron job is not running');
   }
   
-  foreach ($tx_memp as $key => $txid) {
-    if (update_txset($txid, $sort_meth, false)) {
-	  $tx_count++;
-	}
+  foreach ($tx_memp as $key => $txid) { check_tx($txid, $p); }
+
+  if ($filter == 1) {
+    $num_pages = ceil($inp_cnt/$txper_page);
+  } elseif ($filter == 2) {
+    $num_pages = ceil($out_cnt/$txper_page);
+  } else {
+    $num_pages = ceil($tx_count/$txper_page);
   }
-  
-  $num_pages = ceil($tx_count/$txper_page);
   $start_page = $p - 2;
+
   if ($start_page < 1) {
 	$start_page = 1;
   }
@@ -188,9 +262,6 @@ if (rpc_error_check(false)) {
   $clean_lim = remove_ep($ainfo[0]['limit']);
   $clean_fli = remove_ep($ainfo[0]['futurelimit']);
   
-  $amnt_it = float_format($s_dat[0]);
-  $amnt_ot = float_format($s_dat[1]);
-  
   if (clean_number($clean_bal) === '0') {
     $last_used = 'unknown';
   } else {
@@ -204,16 +275,16 @@ if (rpc_error_check(false)) {
 	<table class='table table-striped table-condensed'>
       <tr><td><b>Address:</b></td><td><?php echo $ainfo[0]['address']; ?></td></tr>
       <tr><td><b>Balance:</b></td><td><?php echo "$clean_bal $curr_code $conf_txt"; ?></td></tr>
-      <tr><td><b>Total Sent:</b></td><td><?php echo "$amnt_it $curr_code"; ?></td></tr>
-      <tr><td><b>Total Received:</b></td><td><?php echo "$amnt_ot $curr_code"; ?></td></tr>
+      <tr><td><b>Total Sent:</b></td><td><?php echo "$real_ins $curr_code"; ?></td></tr>
+      <tr><td><b>Total Received:</b></td><td><?php echo "$real_ots $curr_code"; ?></td></tr>
       <tr><td><b>Last Used:</b></td><td><?php echo $last_used; ?></td></tr>
 	</table>
   </div>
   <div class='span4'>
     <table class='table table-striped table-condensed'>
-      <tr><td><b>Transactions:</b></td><td><?php echo $tx_count; ?></td></tr>
-      <tr><td><b>Tx's Sent:</b></td><td><?php echo $s_dat[2]; ?></td></tr>
-	  <tr><td><b>Tx's Received:</b></td><td><?php echo $s_dat[3]; ?></td></tr>
+      <tr><td><b>Transactions:</b></td><td><?php echo $real_txc; ?></td></tr>
+      <tr><td><b>Tx's Sent:</b></td><td><?php echo $real_inc; ?></td></tr>
+	  <tr><td><b>Tx's Received:</b></td><td><?php echo $real_otc; ?></td></tr>
       <tr><td><b>Withdrawal Limit:</b></td><td><?php echo "$clean_lim $curr_code"; ?></td></tr>
       <tr><td><b>Pending Limit:</b></td><td><?php echo "$clean_fli $curr_code"; ?></td></tr>
 	</table>
