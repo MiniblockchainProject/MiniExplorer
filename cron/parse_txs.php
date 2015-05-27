@@ -29,6 +29,9 @@ $out_num = (int) $s_dat[1];
 $inp_tot = (int) $s_dat[2];
 $out_tot = (int) $s_dat[3];
 
+$totals = array();
+$add_txs = array();
+
 $bhdb_handle = fopen(dirname(__FILE__).'/../db/bhashes', "r+");
 $ohdb_handle = fopen(dirname(__FILE__).'/../db/ohashes', "r+");
 
@@ -61,14 +64,8 @@ function put_orph_hash($index, $hash) {
 
 function scan_tx($tx) {
 
-  $totals = array(
-	'in' => array(),
-	'out' => array(),
-	'in_cnt' => array(),
-	'out_cnt' => array()
-  );
-
-  $add_txs = array();
+  global $totals;
+  global $add_txs;
   $txid = $tx['txid'];
 
   if (isset($tx['limit'])) {
@@ -83,13 +80,15 @@ function scan_tx($tx) {
       $clean_val = remove_ep($input['value']);
       if (isset($add_txs[$input['address']])) {
         $add_txs[$input['address']] .= "$txid:0\n";
-	    $inp_sum = $totals['in'][$input['address']];
-	    $totals['in'][$input['address']] = bcadd($inp_sum, $clean_val);
-	    $totals['in_cnt'][$input['address']] += 1;
+	    $inp_sum = $totals[$input['address']]['inp'];
+	    $totals[$input['address']]['inp'] = bcadd($inp_sum, $clean_val);
+	    $totals[$input['address']]['ict'] += 1;
       } else {
         $add_txs[$input['address']] = "$txid:0\n";
-	    $totals['in'][$input['address']] = $clean_val;
-	    $totals['in_cnt'][$input['address']] = 1;
+	    $totals[$input['address']] = array(
+		  'inp' => $clean_val, 'ict' => 1,
+		  'out' => 0, 'oct' => 0
+		);
       }
     }
 
@@ -97,22 +96,24 @@ function scan_tx($tx) {
       $clean_val = remove_ep($output['value']);
       if (isset($add_txs[$output['address']])) {
         $add_txs[$output['address']] .= "$txid:1\n";
-	    $out_sum = $totals['out'][$output['address']];
-	    $totals['out'][$output['address']] = bcadd($out_sum, $clean_val);
-	    $totals['out_cnt'][$output['address']] += 1;
+	    $out_sum = $totals[$output['address']]['out'];
+	    $totals[$output['address']]['out'] = bcadd($out_sum, $clean_val);
+	    $totals[$output['address']]['oct'] += 1;
       } else {
         $add_txs[$output['address']] = "$txid:1\n";
-	    $totals['out'][$output['address']] = $clean_val;
-	    $totals['out_cnt'][$output['address']] = 1;
+	    $totals[$output['address']] = array(
+		  'out' => $clean_val, 'oct' => 1,
+		  'inp' => 0, 'ict' => 0
+		);
       }
     }
   }
-
-  return array($add_txs, $totals);
 }
 
-function update_astats($add_txs, $totals, $orphan=false) {
+function update_astats($orphan) {
 
+  global $totals;
+  global $add_txs;
   global $inp_tot;
   global $out_tot;
   global $inp_num;
@@ -127,26 +128,10 @@ function update_astats($add_txs, $totals, $orphan=false) {
       mkdir(dirname(__FILE__)."/../db/txs/$sub_dir/", 0700);
 	}
 
-	if (isset($totals['in'][$address])) {
-	  $inp_sum = $totals['in'][$address];
-	} else {
-	  $inp_sum = '0';
-	}
-	if (isset($totals['out'][$address])) {
-	  $out_sum = $totals['out'][$address];
-	} else {
-	  $out_sum = '0';
-	}
-	if (isset($totals['in_cnt'][$address])) {
-	  $inp_cnt = $totals['in_cnt'][$address];
-	} else {
-	  $inp_cnt = '0';
-	}
-	if (isset($totals['out_cnt'][$address])) {
-	  $out_cnt = $totals['out_cnt'][$address];
-	} else {
-	  $out_cnt = '0';
-	}
+	$inp_sum = $totals[$address]['inp'];
+	$out_sum = $totals[$address]['out'];
+	$inp_cnt = $totals[$address]['ict'];
+	$out_cnt = $totals[$address]['oct'];
 
     if ($orphan) {
 	  $stats = file_get_contents(dirname(__FILE__)."$add_dir-stats");
@@ -172,83 +157,81 @@ function update_astats($add_txs, $totals, $orphan=false) {
 	    $inp_cnt += $stats_arr[2];
 	    $out_cnt += $stats_arr[3];
 	  }
-	  file_put_contents(dirname(__FILE__)."$add_dir", $value, FILE_APPEND);
+	  file_put_contents(dirname(__FILE__).$add_dir, $value, FILE_APPEND);
 	}
     $stats = "$inp_sum:$out_sum:$inp_cnt:$out_cnt";
 	file_put_contents(dirname(__FILE__)."$add_dir-stats", $stats);
   }
 }
 
+function process_block($block_hash) {
+
+  global $totals;
+  global $add_txs;
+  global $daemon;
+
+  $totals = array();
+  $add_txs = array();
+  $block = $daemon->getblock($block_hash);
+
+  if (empty($block)) {
+    return "error: could not get block $block_hash";
+  }
+
+  foreach ($block['tx'] as $key => $txid) {
+    $tx = $daemon->getrawtransaction($txid, 1);
+    if (empty($tx)) {
+      return "error: could not get tx $txid";
+    } else {
+      scan_tx($tx);
+    }
+  }
+
+  return $block;
+}
+
 while ($l_blk <= $block_height) {
 
   $block_hash = $daemon->getblockhash($l_blk);
+  $last_hash = get_block_hash($l_blk);
+
   if (empty($block_hash)) {
     $error = "error: could not get block $l_blk";
 	break;
   }
 
-  $last_hash = get_block_hash($l_blk);
   if (empty($last_hash) || $last_hash === $null_64bstr) {
 
-    $block = $daemon->getblock($block_hash);
-	if (empty($block)) {
-      $error = "error: could not get block $block_hash";
-	  break;
-	}
+	$block = process_block($block_hash);
 
-	$break = false;
-	foreach ($block['tx'] as $key => $txid) {
-	  $tx = $daemon->getrawtransaction($txid, 1);
-	  if (empty($tx)) {
-        $error = "error: could not get tx $txid";
-	    $break = true;
-		break;
-	  } else {
-	    $tx_dat = scan_tx($tx);
-	  }
-	}
-
-	if ($break === true) {
-	  break;
-	} else {
-      update_astats($tx_dat[0], $tx_dat[1]);
+	if (isset($block['hash'])) {
+      update_astats(false);
       put_block_hash($l_blk, $block_hash);
 	  $l_txn += count($block['tx']);
 	  $l_blk++;
+	} else {
+	  $error = $block;
+	  break;
 	}
 
   } elseif ($last_hash === $block_hash) {
+	$l_blk++;
     continue;
   } else {
 
-    $block = $daemon->getblock($last_hash);
-	if (empty($block)) {
-      $error = "error: could not get orphan block $last_hash";
-	  break;
-	}
+    $block = process_block($last_hash);
 
-	$break = false;
-	foreach ($block['tx'] as $key => $txid) {
-	  $tx = $daemon->getrawtransaction($txid, 1);
-	  if (empty($tx)) {
-        $error = "error: could not get orphan tx $txid";
-	    $break = true;
-		break;
-	  } else {
-	    $tx_dat = scan_tx($tx);
-	  }
-	}
-
-	if ($break === true) {
-	  break;
-	} else {
-      update_astats($tx_dat[0], $tx_dat[1], true);
+	if (isset($block['hash'])) {
+      update_astats(true);
       put_orph_hash($o_blk, $last_hash);
       put_block_hash($l_blk, $null_64bstr);
       $o_txn += count($block['tx']);
       $l_txn -= $o_txn;
       $o_blk++;
 	  $l_blk--;
+	} else {
+	  $error = $block;
+	  break;
     }
   }
 
