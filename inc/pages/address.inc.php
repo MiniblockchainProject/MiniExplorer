@@ -142,7 +142,7 @@ function check_tx($txid, $p) {
   if (empty($tx)) { return 0; }
   $tx = tx_scan($tx);
   if ($tx['type'] >= 0) {
-    if (($filter != 0 && (($filter-1) == $tx['type'])) 
+    if (($filter == 0 || (($filter-1) == $tx['type'])) 
     && ($p == 1 && $sort_meth == 0)) {
       update_txset($tx, $sort_meth, false);
     }
@@ -203,7 +203,7 @@ if (rpc_error_check(false)) {
   
   if (($getinfo['blocks'] - $l_blk) < 10) {
 
-    for ($i=$l_blk;$i<$getinfo['blocks'];$i++) {
+    for ($i=$l_blk-1;$i<$getinfo['blocks'];$i++) {
       $block_hash = $_SESSION[$rpc_client]->getblockhash($i+1);
       $block = $_SESSION[$rpc_client]->getblock($block_hash);
 	  if (!empty($block['tx'])) {
