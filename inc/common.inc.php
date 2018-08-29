@@ -54,6 +54,7 @@ if (empty($_GET['page'])) {
   $page = urlencode($_GET['page']);
   $title_arr = array('search' => 'Search', 
     'orphaned' => 'Orphaned Blocks',
+	'richlist' => 'Rich List',
     'stats' => 'Stats', 'api' => 'API',
 	'mempool' => 'Memory Pool',
 	'peers' => 'Connected Peers'

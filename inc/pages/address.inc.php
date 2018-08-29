@@ -21,8 +21,8 @@ $l_dat = explode(':', file_get_contents("./db/last_dat"));
 $filter = empty($_GET['filter']) ? 0 : (int) $_GET['filter'];
 $sort_meth = empty($_GET['sort']) ? 0 : (int) $_GET['sort'];
 
-$inp_sum = float_format($s_dat[0]);
-$out_sum = float_format($s_dat[1]);
+$inp_sum = float_format(int_to_coins($s_dat[0]));
+$out_sum = float_format(int_to_coins($s_dat[1]));
 
 $inp_cnt = (int) $s_dat[2];
 $out_cnt = (int) $s_dat[3];
@@ -65,24 +65,26 @@ function tx_scan($tx) {
     $tx['amount'] = remove_ep($tx['vin'][0]['value']);
     return $tx;
   } else {
-
-    foreach ($tx['vin'] as $k => $input) {
-      if ($input['address'] === $address) {
-        $tx['type'] = 0;
-        $tx['in'] = remove_ep($input['value']);
-        $tx['amount'] = $tx['in'];
-        return $tx;
+    if (isset($tx['vin']) && isset($tx['vout'])) {
+	
+      foreach ($tx['vin'] as $k => $input) {
+        if ($input['address'] === $address) {
+          $tx['type'] = 0;
+          $tx['in'] = remove_ep($input['value']);
+          $tx['amount'] = $tx['in'];
+          return $tx;
+        }
       }
-    }
 
-    foreach ($tx['vout'] as $k => $output) {
-      if ($output['address'] === $address) {
-        $tx['type'] = 1;
-        $tx['out'] = remove_ep($output['value']);
-        $tx['amount'] = $tx['out'];
-        return $tx;
+      foreach ($tx['vout'] as $k => $output) {
+        if ($output['address'] === $address) {
+          $tx['type'] = 1;
+          $tx['out'] = remove_ep($output['value']);
+          $tx['amount'] = $tx['out'];
+          return $tx;
+        }
       }
-    }
+	}
   }
 
   $tx['type'] = -1;
@@ -194,7 +196,7 @@ if (rpc_error_check(false)) {
 	  update_txset($tx);
 	  $txset_size++;
 	} else {
-      die('error: invalid link to tx: '.$tx_arr[0]);
+      echo('error: invalid link to tx: '.$tx_arr[0]);
     }
 	
 	if ($txset_size >= $txper_page) { break; }

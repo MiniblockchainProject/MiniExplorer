@@ -6,12 +6,15 @@ $tx_stats = $_SESSION[$rpc_client]->gettxoutsetinfo();
 $now_time = date("Y-m-d H:i:s e");
 $start_time = date("Y-m-d H:i:s e", $launch_time);
 $time_diff = get_time_difference($start_time, $now_time);
-$coin_supply = remove_ep($tx_stats['total_amount']);
+$hacked_coins = '262005483.998811';
+$coin_supply = bcadd(remove_ep($tx_stats['total_amount']), $hacked_coins);
 $cb_balance = remove_ep($balance[0]['balance']);
 $frac_reman = bcdiv($cb_balance, $total_coin);
 $block_rwrd = bcmul($first_reward, $frac_reman);
 $l_dat = explode(':', file_get_contents("./db/last_dat"));
 $s_dat = explode(':', file_get_contents("./db/stat_dat"));
+$input_total = int_to_coins($s_dat[2]);
+$output_total = bcsub(int_to_coins($s_dat[3]), '1844674407');
 ?>
 
 <h1>Statistics</h1><br />
@@ -19,10 +22,10 @@ $s_dat = explode(':', file_get_contents("./db/stat_dat"));
 <table class="table table-striped">
 <tr><td>
   <b>Coin supply:</b></td><td>
-  <?php echo float_format($coin_supply, 6)." $curr_code"; ?>
+  <?php echo pretty_format($coin_supply, 6)." $curr_code"; ?>
 </td></tr><tr><td>
   <b>Unmined coins:</b></td><td>
-  <?php echo float_format($cb_balance, 4).' '.$curr_code; ?>
+  <?php echo pretty_format($cb_balance, 4).' '.$curr_code; ?>
 </td></tr><tr><td>
   <b>Block Reward:</b></td><td>
   <?php echo $block_rwrd.' '.$curr_code; ?>
@@ -43,13 +46,10 @@ $s_dat = explode(':', file_get_contents("./db/stat_dat"));
   <?php echo $s_dat[1]; ?>
 </td></tr><tr><td>
   <b>Total Inputs:</b></td><td>
-  <?php echo float_format($s_dat[2], 6).' '.$curr_code; ?>
+  <?php echo pretty_format($input_total, 6).' '.$curr_code; ?>
 </td></tr><tr><td>
   <b>Total Outputs:</b></td><td>
-  <?php echo float_format($s_dat[3], 6).' '.$curr_code; ?>
-</td></tr><tr><td>
-  <b>Total Fees:</b></td><td>
-  <?php echo bcsub($s_dat[2], $s_dat[3]).' '.$curr_code; ?>
+  <?php echo pretty_format($output_total, 6).' '.$curr_code; ?>
 </td></tr><tr><td>
   <b>Avg. Block Time:</b></td><td>
   <?php echo round(($time_diff['seconds']/$mining_info['blocks'])/60, 4).' minutes'; ?>

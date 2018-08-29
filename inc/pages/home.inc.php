@@ -5,6 +5,7 @@
 <h3>Other Pages</h3>
 
 <p>
+  <a href="./?page=richlist">Rich List</a> - A list of the top 1000 richest addresses<br />
   <a href="./?page=orphaned">Orphaned Blocks</a> - A list of valid blocks not in the main chain<br />
   <a href="./?page=mempool">Memory Pool</a> - A list of transactions currently in our memory pool<br />
   <a href="./?page=peers">Connected Peers</a> - A list of nodes currently connected to our node
