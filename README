@@ -2,10 +2,6 @@ MBC Block Explorer
 
 This is a PHP (no database required) block explorer designed for use with mini-blockchain coins.
 
-IMPORTANT:
-
-The full blockchain is required for this explorer to work properly.
-
 REQUIREMENTS:
 
 * PHP >= 5.4
