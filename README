@@ -9,6 +9,6 @@ REQUIREMENTS:
 
 INSTALLATION:
 
-Make sure you have a full copy of the blockchain before proceeding. Upload the explorer files to your server. Make sure your coin daemon is NOT running then start ExplorerParser with -firstrun. Wait until it has finished then edit the /inc/config.inc.php file. The explorer should now be working, finally set up a cron job so that ExplorerParser runs periodically using -update instead of -firstrun. Use -richlist to compute the rich list file used by the explorer.
+Make sure you have a full copy of the blockchain before proceeding. Upload the explorer files to your server. Make sure your coin daemon is NOT running then start ExplorerParser with -firstrun. The ExplorerParser binary should be placed in the root directory of the explorer. Wait until it has finished then edit the /inc/config.inc.php file. The explorer should now be working, finally set up a cron job so that ExplorerParser runs periodically using -update instead of -firstrun. Use -richlist to compute the rich list file used by the explorer.
 
 ExplorerParser: https://github.com/MiniblockchainProject/ExplorerParser
