@@ -65,18 +65,20 @@ if ($l_dat[2] == 0) {
 
   $items_pp = ($l_dat[2] < 100) ? $l_dat[2] : 100;
   
-  for ($i=$start_line; $i<=$items_pp; $i++) {
+  for ($i=0; $i<$items_pp; $i++) {
 
-    $orph_hash = bin2hex(strrev(hex2bin(get_orph_hash($i))));
-    $block[$i] = $_SESSION[$rpc_client]->getblock($orph_hash);
+    $orph_hash = get_orph_hash($start_line+$i);
+	if (empty($orph_hash)) break;
+    $orph_hash = bin2hex(strrev(hex2bin($orph_hash)));
+    $block = $_SESSION[$rpc_client]->getblock($orph_hash);
   
-    echo "<tr><td><a href='./?block=".$block[$i]['hash'].
-    "'>".$block[$i]['height']."</a></td><td>".
-    date("Y-m-d h:i A e", $block[$i]['time']).
-    "</td><td>".$block[$i]['difficulty'].
-    "</td><td>".$block[$i]['nonce'].
-    "</td><td>".count($block[$i]['tx']).
-    "</td><td>".round($block[$i]['size']/1024, 2).
+    echo "<tr><td><a href='./?block=".$block['hash'].
+    "'>".$block['height']."</a></td><td>".
+    date("Y-m-d h:i A e", $block['time']).
+    "</td><td>".$block['difficulty'].
+    "</td><td>".$block['nonce'].
+    "</td><td>".count($block['tx']).
+    "</td><td>".round($block['size']/1024, 2).
     " kB</td></tr>";
   }
 }
