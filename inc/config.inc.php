@@ -29,6 +29,9 @@ $show_cbtxs = true;
 // initial balance of coinbase account
 $total_coin = '1844674407';
 
+// hacked coins in circulation
+$hacked_coins = '262005483.998811';
+
 // initial block reward
 $first_reward = '243.1';
 

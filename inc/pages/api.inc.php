@@ -89,7 +89,7 @@
       break;
     case 'coinsupply': ////////////////////////////////////////////
       $tx_stats = $_SESSION[$rpc_client]->gettxoutsetinfo();
-      $result = remove_ep($tx_stats['total_amount']);
+      $result = bcadd(remove_ep($tx_stats['total_amount']), $hacked_coins);
       break;
     case 'unminedcoins': ////////////////////////////////////////////
 	  $balance = $_SESSION[$rpc_client]->listbalances(1, array($cb_address));

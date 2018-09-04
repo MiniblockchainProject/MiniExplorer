@@ -6,7 +6,6 @@ $tx_stats = $_SESSION[$rpc_client]->gettxoutsetinfo();
 $now_time = date("Y-m-d H:i:s e");
 $start_time = date("Y-m-d H:i:s e", $launch_time);
 $time_diff = get_time_difference($start_time, $now_time);
-$hacked_coins = '262005483.998811';
 $coin_supply = bcadd(remove_ep($tx_stats['total_amount']), $hacked_coins);
 $cb_balance = remove_ep($balance[0]['balance']);
 $frac_reman = bcdiv($cb_balance, $total_coin);

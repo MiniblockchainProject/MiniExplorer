@@ -214,7 +214,7 @@ if (rpc_error_check(false)) {
     }
 
   } else {
-    die('error: /cron/parse_txs.php cron job is not running');
+    die('error: ExplorerParser is not updating the db');
   }
   
   foreach ($tx_memp as $key => $txid) { check_tx($txid, $p); }
