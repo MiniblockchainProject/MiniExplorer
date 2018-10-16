@@ -6,7 +6,7 @@ $conf_txt = "(confs >= $confs)";
 $ainfo = $_SESSION[$rpc_client]->listbalances($confs, array($address));
 $tx_memp = $_SESSION[$rpc_client]->getrawmempool();
 
-$sub_dir = substr($address, 1, 2);
+$sub_dir = strtolower(substr($address, 1, 2));
 $ful_dir = "./db/txs/$sub_dir/$address";
 
 if (file_exists($ful_dir)) {
@@ -174,9 +174,7 @@ if (rpc_error_check(false)) {
     $start_line = find_start($start_line);
   }
 
-  for ($i=$start_line;;) {
-  
-    if ($i < 0) { break; }
+  for ($i=$start_line; $i >= 0;) {
   
     if (isset($txdb_handle)) {
 	  $line = trim(get_tx($i));
