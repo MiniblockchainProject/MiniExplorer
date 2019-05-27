@@ -32,6 +32,15 @@ function post_get_check() {
   }
 }
 
+function tx_type_str($type) {
+  switch ((int)$type) {
+    case 0: return 'sent';
+	case 1: return 'received';
+	case 2: return 'limit updated';
+	default: return 'invalid/orphaned';
+  }
+}
+
 function update_config($new_config) {
 
   try {

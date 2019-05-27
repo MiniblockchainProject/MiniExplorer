@@ -31,18 +31,25 @@
 
 	<h3>Address Data</h3>
 	<p>
+	  <a href="./?q=addresstxns">addresstxns</a>/Address/Count - get recent tx's for address<br />
 	  <a href="./?q=addressbalance">addressbalance</a>/Address/Confs - balance of address<br />
 	  <a href="./?q=addresslimit">addresslimit</a>/Address/Confs - withdrawal limit of address<br />
 	  <a href="./?q=addresslastseen">addresslastseen</a>/Address - block when address last used<br />
 	  <a href="./?q=addresscount">addresscount</a> - number of non-empty addresses
 	</p>
 
-	<h3>JSON Data</h3>
+	<h3>Other Data</h3>
 	<p>
 	  <a href="./?q=getinfo">getinfo</a> - general information<br />
 	  <a href="./?q=txinfo">txinfo</a>/TxHash - transaction information<br />
 	  <a href="./?q=addressinfo">addressinfo</a>/Address/Confs - address information<br />
 	  <a href="./?q=blockinfo">blockinfo</a>/BlockHash - block information
+	</p>
+	
+	<h3>Propagation</h3>
+	<p>
+	  <a href="./?q=sendrawtx">sendrawtx</a>/TxHex - send raw transaction hex<br />
+	  <a href="./?q=submitblock">submitblock</a>/BlockHex - submit raw block hex
 	</p>
 
   </div>
@@ -151,7 +158,48 @@
     case 'txcount': ////////////////////////////////////////////
       $l_dat = explode(':', file_get_contents("./db/last_dat"));
 	  $result = $l_dat[1];
-      break;  
+      break;
+	case 'sendrawtx': ////////////////////////////////////////////
+	  if (empty($_GET['arg1'])) {
+	    die('tx hex not specified');
+	  } else {
+	    $raw_tx = preg_replace("/[^a-z0-9]/i", '', $_GET['arg1']);
+	    $result = $_SESSION[$rpc_client]->sendrawtransaction($raw_tx);
+	  }
+	  break;
+	case 'submitblock': ////////////////////////////////////////////
+	  if (empty($_GET['arg1'])) {
+	    die('block hex not specified');
+	  } else {
+	    $raw_blk = preg_replace("/[^a-z0-9]/i", '', $_GET['arg1']);
+	    $result = $_SESSION[$rpc_client]->submitblock($raw_blk);
+	  }
+	  break;
+	case 'addresstxns': ////////////////////////////////////////////
+	  if (empty($_GET['arg1'])) {
+	    die('address was not specified');
+	  } else {
+	    $address = preg_replace("/[^a-z0-9]/i", '', $_GET['arg1']);
+		$sub_dir = strtolower(substr($address, 1, 2));
+		$txn_file = "./db/txs/$sub_dir/$address";
+		$txns_str = @file_get_contents($txn_file);
+		if ($txns_str === false || empty($txns_str)) die('no transactions found');
+		$txns = explode("\n", rtrim($txns_str));
+	    if (!empty($_GET['arg2'])) {
+		  $num = (int)$_GET['arg2'];
+		  if ($num <= 0) die('invalid number of txns requested');
+		  if ($num < count($txns)) {
+		    $txns = array_slice($txns, -$num, $num);
+		  }
+		}
+		foreach ($txns as $key => $value) {
+		  $txn = explode(':', $value);
+		  $txns[$key] = array('txid' => $txn[0], 'type' => tx_type_str($txn[1]));
+		}
+	  }
+	  header('Content-Type: application/json');
+	  echo json_encode($txns);
+      exit;
     case 'addressbalance': ////////////////////////////////////////////
 	  if (empty($_GET['arg1'])) {
 	    die('address was not specified');
