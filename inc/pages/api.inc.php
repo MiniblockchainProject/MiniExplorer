@@ -7,22 +7,16 @@
 
 	<h3>Network Data</h3>
 	<p>
+	  <a href="./?q=getinfo">getinfo</a> - general information<br />
 	  <a href="./?q=getdifficulty">getdifficulty</a> - current mining difficulty<br />
 	  <a href="./?q=gethashrate">gethashrate</a> - estimated hash rate (hash/s)<br />
 	  <a href="./?q=getblockcount">getblockcount</a> - current block height<br />
 	  <a href="./?q=getlasthash">getlasthash</a> - hash of latest block
 	</p>
 
-	<h3>Coin Data</h3>
-	<p>
-	  <a href="./?q=blockreward">blockreward</a> - current block reward<br />
-	  <a href="./?q=coinsupply">coinsupply</a> - total coins mined<br />
-	  <a href="./?q=unminedcoins">unminedcoins</a> - total unmined coins<br />
-	  <a href="./?q=runtime">runtime</a> - time since first block (secs)
-	</p>
-
 	<h3>Transaction Data</h3>
 	<p>
+	  <a href="./?q=txinfo">txinfo</a>/TxHash - transaction information<br />
 	  <a href="./?q=txinput">txinput</a>/TxHash - total tx input value<br />
 	  <a href="./?q=txoutput">txoutput</a>/TxHash - total tx output value<br />
 	  <a href="./?q=txfee">txfee</a>/TxHash - tx fee value (inputs - outputs)<br />
@@ -31,7 +25,10 @@
 
 	<h3>Address Data</h3>
 	<p>
+	  <a href="./?q=addressinfo">addressinfo</a>/Address/Confs - address information<br />
 	  <a href="./?q=addresstxns">addresstxns</a>/Address/Count - get recent tx's for address<br />
+	  <a href="./?q=addresstxpage">addresstxpage</a>/Address/Page/Count - get tx's for address in paged format<br />
+	  <a href="./?q=addresstxcount">addresstxcount</a>/Address/TxType - count tx's sent/received by address<br />
 	  <a href="./?q=addressbalance">addressbalance</a>/Address/Confs - balance of address<br />
 	  <a href="./?q=addresslimit">addresslimit</a>/Address/Confs - withdrawal limit of address<br />
 	  <a href="./?q=addresslastseen">addresslastseen</a>/Address - block when address last used<br />
@@ -40,10 +37,11 @@
 
 	<h3>Other Data</h3>
 	<p>
-	  <a href="./?q=getinfo">getinfo</a> - general information<br />
-	  <a href="./?q=txinfo">txinfo</a>/TxHash - transaction information<br />
-	  <a href="./?q=addressinfo">addressinfo</a>/Address/Confs - address information<br />
-	  <a href="./?q=blockinfo">blockinfo</a>/BlockHash - block information
+	  <a href="./?q=blockinfo">blockinfo</a>/BlockHash - block information<br />
+	  <a href="./?q=blockreward">blockreward</a> - current block reward<br />
+	  <a href="./?q=coinsupply">coinsupply</a> - total coins mined<br />
+	  <a href="./?q=unminedcoins">unminedcoins</a> - total unmined coins<br />
+	  <a href="./?q=runtime">runtime</a> - time since first block (secs)
 	</p>
 	
 	<h3>Propagation</h3>
@@ -57,13 +55,31 @@
 
 	<h2>Usage</h2>
 
-	<p>The following example shows a correct URL for checking the balance of an address, disregarding transactions with less than 3 confirmations (the confirmation argument is always optional, the default value is 1). All other queries which take 1 or more arguments use the same arg1 and arg2 parameter names as shown below.</p>
+	<p>The following example shows a correct URL for checking the balance of an address, disregarding transactions with less than 3 confirmations. All other queries which take 1 or more arguments use the same arg1 and arg2 parameter names as shown below.</p>
 
 	<pre>/?q=addressbalance&amp;arg1=CGTta3M4t3yXu8uRgkKvaWd2d8DQvDPnpL&amp;arg2=3</pre>
 
 	<p>Or if URL rewriting is active you can use this more friendly format:</p>
 
 	<pre>/q/addressbalance/CGTta3M4t3yXu8uRgkKvaWd2d8DQvDPnpL/3</pre>
+		
+	<br /><br />
+	
+	<h4>addressbalance</h4>
+	
+	<p>The <i>Confs</i> parameter is optional, the default value is 1.</p><br />
+	
+	<h4>addresstxns</h4>
+	
+	<p>The <i>Count</i> parameter is optional, if not supplied it will return all transactions for that address. The returned json contains the transaction id's (TxHash) along with the type of transaction ('received', 'sent', 'limit updated', and 'invalid/orphaned'). Results are ordered newest to oldest.</p><br />
+	
+	<h4>addresstxpage</h4>
+	
+	<p>Provides a page-based list of transactions for an address. The <i>Page</i> parameter will determine the page returned and starts at 0 for the most recent page. The <i>Count</i> parameter determines the number of transactions per page and is optional (default is 10). Results are ordered newest to oldest.</p><br />
+	
+	<h4>addresstxcount</h4>
+	
+	<p>The <i>TxType</i> parameter is optional, if not supplied it will return the sum of both sent and received transactions. Valid TxType values are 1 and 2 (1 = sent, 2 = received).</p>
 	
   </div>
 </div>
@@ -175,6 +191,48 @@
 	    $result = $_SESSION[$rpc_client]->submitblock($raw_blk);
 	  }
 	  break;
+	case 'addresstxpage': ////////////////////////////////////////////
+	  if (empty($_GET['arg1'])) {
+	    die('address was not specified');
+	  } else {
+	    $page_json = '';
+	    $address = preg_replace("/[^a-z0-9]/i", '', $_GET['arg1']);
+		$sub_dir = strtolower(substr($address, 1, 2));
+		$txn_file = "./db/txs/$sub_dir/$address";
+		$txns_str = @file_get_contents($txn_file);
+		if ($txns_str === false || empty($txns_str)) die('no transactions found');
+		$txns = explode("\n", rtrim($txns_str));
+		$page = (int)(empty($_GET['arg2'])? 0 : $_GET['arg2']);
+		if ($page < 0) die('invalid page number requested');
+		$numpp = (int)(empty($_GET['arg3'])? 10 : $_GET['arg3']);
+		if ($numpp <= 0) die('invalid number of txns per page requested');
+		$txn_cnt = count($txns);
+		if ($txn_cnt > 0) {
+	      $page_cnt = ceil((float)$txn_cnt/$numpp);
+		  if ($numpp < $txn_cnt) {
+		    $txns = array_slice($txns, $page*$numpp, $numpp);
+		  }
+		  for ($i=count($txns)-1; $i >= 0; --$i) {
+		    $txn = explode(':', $txns[$i]);
+            $tinfo = $_SESSION[$rpc_client]->getrawtransaction($txn[0], 1);
+			unset($tinfo['hex']);
+			foreach ($tinfo['vin'] as $key => $value) {
+			  $tinfo['vin'][$key]['value'] = remove_ep($value['value']);
+			}
+		    foreach ($tinfo['vout'] as $key => $value) {
+			  $tinfo['vout'][$key]['value'] = remove_ep($value['value']);
+		    }
+		    $page_json .= json_encode($tinfo).',';
+		  }
+		  header('Content-Type: application/json');
+		  echo '{"pagesTotal": '.$page_cnt.', "txs": ['.rtrim($page_json, ',').']}';
+		  exit;
+		} else {
+		  header('Content-Type: application/json');
+		  echo '{"pagesTotal": 0, "txs": []}';
+		  exit;
+		}
+	  }
 	case 'addresstxns': ////////////////////////////////////////////
 	  if (empty($_GET['arg1'])) {
 	    die('address was not specified');
@@ -192,14 +250,34 @@
 		    $txns = array_slice($txns, -$num, $num);
 		  }
 		}
-		foreach ($txns as $key => $value) {
-		  $txn = explode(':', $value);
-		  $txns[$key] = array('txid' => $txn[0], 'type' => tx_type_str($txn[1]));
+		for ($i=count($txns)-1; $i >= 0; --$i) {
+		  $txn = explode(':', $txns[$i]);
+		  $txns[$i] = array('txid' => $txn[0], 'type' => tx_type_str($txn[1]));
 		}
 	  }
 	  header('Content-Type: application/json');
 	  echo json_encode($txns);
       exit;
+	case 'addresstxcount': ////////////////////////////////////////////
+	  if (empty($_GET['arg1'])) {
+	    die('address was not specified');
+	  } else {
+	    $address = preg_replace("/[^a-z0-9]/i", '', $_GET['arg1']);
+        $tx_type = empty($_GET['arg2']) ? 0 : (int)$_GET['arg2'];
+		$sub_dir = strtolower(substr($address, 1, 2));
+		$stats_file = "./db/txs/$sub_dir/$address-stats";
+		$stats_str = @file_get_contents($stats_file);
+		if ($stats_str === false || empty($stats_str)) die('0');
+		$stats = explode(':', $stats_str);
+		if ($tx_type == 1) {
+			$result = $stats[2];
+		} elseif ($tx_type == 2) {
+			$result = $stats[3];
+		} else {
+			$result = $stats[2] + $stats[3];
+		}
+        break;
+	  }
     case 'addressbalance': ////////////////////////////////////////////
 	  if (empty($_GET['arg1'])) {
 	    die('address was not specified');
