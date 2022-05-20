@@ -10,7 +10,7 @@ $sub_dir = strtolower(substr($address, 1, 2));
 $ful_dir = "./db/txs/$sub_dir/$address";
 
 if (file_exists($ful_dir)) {
-  $txdb_handle = fopen($ful_dir, "r+");
+  $txdb_handle = fopen($ful_dir, "r");
   $s_dat = explode(':', file_get_contents("$ful_dir-stats"));
 } else {
   $s_dat = array('0','0','0','0');
